@@ -8,10 +8,16 @@ class SettingsForm extends StatefulWidget {
     super.key,
     required this.initialValue,
     required this.onSave,
+    this.onTestGit,
+    this.onTestR2,
+    this.onTestBlog,
     this.connectMode = false,
   });
   final AppSettings initialValue;
   final Future<void> Function(AppSettings value) onSave;
+  final Future<String> Function(AppSettings value)? onTestGit;
+  final Future<String> Function(AppSettings value)? onTestR2;
+  final Future<String> Function(AppSettings value)? onTestBlog;
   final bool connectMode;
 
   @override
@@ -90,6 +96,7 @@ class _SettingsFormState extends State<SettingsForm> {
               _field('gitUsername', 'Git 用户名'),
               _field('gitToken', 'Personal Access Token', secret: true),
             ]),
+            _testButton('测试 Git 连接', Icons.sync_alt, widget.onTestGit),
             _section(
               'Supabase 评论',
               '删除评论需要 service_role key；只读可使用 anon key。请勿把 service_role key 写入网页 config.js。',
@@ -97,6 +104,7 @@ class _SettingsFormState extends State<SettingsForm> {
             _field('supabaseUrl', 'Supabase URL',
                 hint: 'https://xxxx.supabase.co'),
             _field('supabaseKey', '管理 API Key', secret: true),
+            _testButton('测试博客连接', Icons.web_outlined, widget.onTestBlog),
             _section(
               'Cloudflare R2',
               '请填写“R2 对象存储 API 令牌”生成的 S3 Access Key ID 和 Secret Access Key，不要填写普通 Cloudflare API Token。令牌需要目标 Bucket 的对象读写权限。',
@@ -124,6 +132,7 @@ class _SettingsFormState extends State<SettingsForm> {
               '公开访问基础 URL',
               hint: 'https://assets.example.com',
             ),
+            _testButton('测试 R2 连接', Icons.cloud_done_outlined, widget.onTestR2),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('显示凭据'),
@@ -216,4 +225,53 @@ class _SettingsFormState extends State<SettingsForm> {
     );
     await widget.onSave(value);
   }
+
+  AppSettings _value() => widget.initialValue.copyWith(
+        gitUrl: c['gitUrl']!.text.trim(),
+        repositoryPath: c['repositoryPath']!.text.trim(),
+        gitAuthorName: c['gitAuthorName']!.text.trim(),
+        gitAuthorEmail: c['gitAuthorEmail']!.text.trim(),
+        gitUsername: c['gitUsername']!.text.trim(),
+        gitToken: c['gitToken']!.text.trim(),
+        supabaseUrl: c['supabaseUrl']!.text.trim(),
+        supabaseKey: c['supabaseKey']!.text.trim(),
+        r2AccountId: c['r2AccountId']!.text.trim(),
+        r2AccessKeyId: c['r2AccessKeyId']!.text.trim(),
+        r2SecretAccessKey: c['r2SecretAccessKey']!.text.trim(),
+        r2Bucket: c['r2Bucket']!.text.trim(),
+        r2PublicBaseUrl: c['r2PublicBaseUrl']!.text.trim(),
+      );
+
+  Widget _testButton(
+    String label,
+    IconData icon,
+    Future<String> Function(AppSettings value)? test,
+  ) =>
+      Align(
+        alignment: Alignment.centerRight,
+        child: OutlinedButton.icon(
+          onPressed: test == null
+              ? null
+              : () async {
+                  try {
+                    final result = await test(_value());
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(result)),
+                      );
+                    }
+                  } catch (error) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content:
+                                Text('$error'.replaceFirst('Exception: ', ''))),
+                      );
+                    }
+                  }
+                },
+          icon: Icon(icon),
+          label: Text(label),
+        ),
+      );
 }

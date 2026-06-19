@@ -20,6 +20,9 @@ class ConnectionScreen extends StatelessWidget {
           ),
           SettingsForm(
             initialValue: controller.settings,
+            onTestGit: controller.testGitSettings,
+            onTestR2: controller.testR2Settings,
+            onTestBlog: controller.testBlogSettings,
             onSave: (value) async {
               try {
                 await controller.updateSettings(value);
