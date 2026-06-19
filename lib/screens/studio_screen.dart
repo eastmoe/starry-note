@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_controller.dart';
 import 'articles_screen.dart';
 import 'assets_screen.dart';
+import 'appearance_screen.dart';
 import 'comments_screen.dart';
 import 'connection_screen.dart';
 import 'site_config_screen.dart';
@@ -31,6 +32,10 @@ class _StudioScreenState extends State<StudioScreen> {
       icon: Icon(Icons.cloud_outlined),
       label: Text('连接'),
     ),
+    NavigationRailDestination(
+      icon: Icon(Icons.palette_outlined),
+      label: Text('外观'),
+    ),
   ];
 
   @override
@@ -41,6 +46,7 @@ class _StudioScreenState extends State<StudioScreen> {
       SiteConfigScreen(controller: widget.controller),
       AssetsScreen(controller: widget.controller),
       ConnectionScreen(controller: widget.controller),
+      AppearanceScreen(controller: widget.controller),
     ];
     final compact = MediaQuery.sizeOf(context).width < 760;
     return Scaffold(

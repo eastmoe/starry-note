@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_controller.dart';
 import 'screens/setup_screen.dart';
 import 'screens/studio_screen.dart';
+import 'screens/welcome_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,30 +17,38 @@ class StarryNoteApp extends StatelessWidget {
   final AppController controller;
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'StarryNote',
-        debugShowCheckedModeBanner: false,
-        themeMode: ThemeMode.system,
-        theme: _theme(Brightness.light),
-        darkTheme: _theme(Brightness.dark),
-        home: AnimatedBuilder(
-          animation: controller,
-          builder: (context, _) => controller.hasRepository
-              ? StudioScreen(controller: controller)
-              : SetupScreen(controller: controller),
-        ),
-      );
+  Widget build(BuildContext context) => AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) => MaterialApp(
+            title: 'StarryNote',
+            debugShowCheckedModeBanner: false,
+            themeMode: controller.settings.followSystemTheme
+                ? ThemeMode.system
+                : controller.settings.darkMode
+                    ? ThemeMode.dark
+                    : ThemeMode.light,
+            theme: _theme(Brightness.light),
+            darkTheme: _theme(Brightness.dark),
+            home: !controller.settings.onboardingCompleted
+                ? WelcomeScreen(controller: controller)
+                : controller.hasRepository
+                    ? StudioScreen(controller: controller)
+                    : SetupScreen(controller: controller),
+          ));
 
   ThemeData _theme(Brightness brightness) {
-    const seed = Color(0xff7567e8);
+    final seed = Color(controller.settings.primaryColorValue);
     final scheme = ColorScheme.fromSeed(
       seedColor: seed,
       brightness: brightness,
     );
+    final pureBlack =
+        brightness == Brightness.dark && controller.settings.pureBlackMode;
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.surface,
+      scaffoldBackgroundColor: pureBlack ? Colors.black : scheme.surface,
+      canvasColor: pureBlack ? Colors.black : scheme.surface,
       inputDecorationTheme: const InputDecorationTheme(
         border: OutlineInputBorder(),
         filled: true,

@@ -199,7 +199,7 @@ class _SettingsFormState extends State<SettingsForm> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final value = AppSettings(
+    final value = widget.initialValue.copyWith(
       gitUrl: c['gitUrl']!.text.trim(),
       repositoryPath: c['repositoryPath']!.text.trim(),
       gitAuthorName: c['gitAuthorName']!.text.trim(),

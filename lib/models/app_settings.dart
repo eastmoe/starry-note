@@ -13,6 +13,11 @@ class AppSettings {
     this.r2SecretAccessKey = '',
     this.r2Bucket = '',
     this.r2PublicBaseUrl = '',
+    this.onboardingCompleted = false,
+    this.followSystemTheme = true,
+    this.darkMode = false,
+    this.pureBlackMode = false,
+    this.primaryColorValue = 0xff7567e8,
   });
 
   final String gitUrl;
@@ -28,6 +33,11 @@ class AppSettings {
   final String r2SecretAccessKey;
   final String r2Bucket;
   final String r2PublicBaseUrl;
+  final bool onboardingCompleted;
+  final bool followSystemTheme;
+  final bool darkMode;
+  final bool pureBlackMode;
+  final int primaryColorValue;
 
   AppSettings copyWith({
     String? gitUrl,
@@ -43,6 +53,11 @@ class AppSettings {
     String? r2SecretAccessKey,
     String? r2Bucket,
     String? r2PublicBaseUrl,
+    bool? onboardingCompleted,
+    bool? followSystemTheme,
+    bool? darkMode,
+    bool? pureBlackMode,
+    int? primaryColorValue,
   }) =>
       AppSettings(
         gitUrl: gitUrl ?? this.gitUrl,
@@ -58,6 +73,11 @@ class AppSettings {
         r2SecretAccessKey: r2SecretAccessKey ?? this.r2SecretAccessKey,
         r2Bucket: r2Bucket ?? this.r2Bucket,
         r2PublicBaseUrl: r2PublicBaseUrl ?? this.r2PublicBaseUrl,
+        onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+        followSystemTheme: followSystemTheme ?? this.followSystemTheme,
+        darkMode: darkMode ?? this.darkMode,
+        pureBlackMode: pureBlackMode ?? this.pureBlackMode,
+        primaryColorValue: primaryColorValue ?? this.primaryColorValue,
       );
 
   Map<String, String> toMap() => {
@@ -74,6 +94,11 @@ class AppSettings {
         'r2SecretAccessKey': r2SecretAccessKey,
         'r2Bucket': r2Bucket,
         'r2PublicBaseUrl': r2PublicBaseUrl,
+        'onboardingCompleted': onboardingCompleted.toString(),
+        'followSystemTheme': followSystemTheme.toString(),
+        'darkMode': darkMode.toString(),
+        'pureBlackMode': pureBlackMode.toString(),
+        'primaryColorValue': primaryColorValue.toString(),
       };
 
   factory AppSettings.fromMap(Map<String, String> map) => AppSettings(
@@ -90,5 +115,11 @@ class AppSettings {
         r2SecretAccessKey: map['r2SecretAccessKey'] ?? '',
         r2Bucket: map['r2Bucket'] ?? '',
         r2PublicBaseUrl: map['r2PublicBaseUrl'] ?? '',
+        onboardingCompleted: map['onboardingCompleted'] == 'true',
+        followSystemTheme: map['followSystemTheme'] != 'false',
+        darkMode: map['darkMode'] == 'true',
+        pureBlackMode: map['pureBlackMode'] == 'true',
+        primaryColorValue:
+            int.tryParse(map['primaryColorValue'] ?? '') ?? 0xff7567e8,
       );
 }

@@ -188,6 +188,8 @@ class _EditorScreenState extends State<EditorScreen>
                   ],
                 ),
                 const SizedBox(height: 6),
+                _markdownToolbar(),
+                const SizedBox(height: 8),
                 CallbackShortcuts(
                   bindings: {
                     const SingleActivator(LogicalKeyboardKey.keyV,
@@ -211,6 +213,125 @@ class _EditorScreenState extends State<EditorScreen>
           ),
         ),
       );
+
+  Widget _markdownToolbar() {
+    final actions = <(String, IconData, VoidCallback)>[
+      ('一级标题', Icons.looks_one_outlined, () => _prefix('# ')),
+      ('二级标题', Icons.looks_two_outlined, () => _prefix('## ')),
+      ('三级标题', Icons.looks_3_outlined, () => _prefix('### ')),
+      ('四级标题', Icons.looks_4_outlined, () => _prefix('#### ')),
+      ('引用', Icons.format_quote, () => _prefix('> ')),
+      ('表格', Icons.table_chart_outlined, _table),
+      ('多行代码', Icons.code, () => _wrap('```\n', '\n```', '代码')),
+      ('加粗', Icons.format_bold, () => _wrap('**', '**', '粗体文本')),
+      ('删除线', Icons.format_strikethrough, () => _wrap('~~', '~~', '删除线文本')),
+      ('倾斜', Icons.format_italic, () => _wrap('*', '*', '斜体文本')),
+      ('无序列表', Icons.format_list_bulleted, () => _prefix('- ')),
+      ('有序列表', Icons.format_list_numbered, _orderedList),
+      ('超链接', Icons.link, () => _wrap('[', '](https://)', '链接文字')),
+    ];
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            children: actions
+                .map((action) => Tooltip(
+                      message: action.$1,
+                      child: IconButton(
+                        onPressed: action.$3,
+                        icon: Icon(action.$2),
+                      ),
+                    ))
+                .toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  ({int start, int end, String selected}) get _selection {
+    final selection = _body.selection;
+    if (!selection.isValid) {
+      final end = _body.text.length;
+      return (start: end, end: end, selected: '');
+    }
+    final start =
+        selection.start < selection.end ? selection.start : selection.end;
+    final end =
+        selection.start < selection.end ? selection.end : selection.start;
+    return (
+      start: start,
+      end: end,
+      selected: _body.text.substring(start, end),
+    );
+  }
+
+  void _wrap(String before, String after, String placeholder) {
+    final selection = _selection;
+    final content =
+        selection.selected.isEmpty ? placeholder : selection.selected;
+    final replacement = '$before$content$after';
+    _body.value = TextEditingValue(
+      text:
+          _body.text.replaceRange(selection.start, selection.end, replacement),
+      selection: TextSelection(
+        baseOffset: selection.start + before.length,
+        extentOffset: selection.start + before.length + content.length,
+      ),
+    );
+  }
+
+  void _prefix(String prefix) => _prefixLines(
+        (index) => prefix,
+        placeholder: '文本',
+      );
+
+  void _orderedList() => _prefixLines(
+        (index) => '${index + 1}. ',
+        placeholder: '列表项',
+      );
+
+  void _prefixLines(
+    String Function(int index) prefix, {
+    required String placeholder,
+  }) {
+    final selection = _selection;
+    final content =
+        selection.selected.isEmpty ? placeholder : selection.selected;
+    final lines = content.split('\n');
+    final replacement = [
+      for (var i = 0; i < lines.length; i++) '${prefix(i)}${lines[i]}',
+    ].join('\n');
+    _body.value = TextEditingValue(
+      text:
+          _body.text.replaceRange(selection.start, selection.end, replacement),
+      selection: TextSelection(
+        baseOffset: selection.start,
+        extentOffset: selection.start + replacement.length,
+      ),
+    );
+  }
+
+  void _table() {
+    final selection = _selection;
+    final content = selection.selected.isEmpty ? '内容' : selection.selected;
+    final table = '| 标题 1 | 标题 2 |\n| --- | --- |\n| $content | 内容 |';
+    _body.value = TextEditingValue(
+      text: _body.text.replaceRange(selection.start, selection.end, table),
+      selection: TextSelection(
+        baseOffset: selection.start + table.indexOf(content),
+        extentOffset: selection.start + table.indexOf(content) + content.length,
+      ),
+    );
+  }
 
   Widget _preview() => Markdown(
         data: _body.text,

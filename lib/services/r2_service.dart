@@ -13,6 +13,21 @@ class R2Service {
   R2Service({http.Client? client}) : _client = client ?? http.Client();
   final http.Client _client;
 
+  Future<String> testConnection(AppSettings settings) async {
+    _validate(settings);
+    final endpoint = Uri.https(
+      '${settings.r2AccountId}.r2.cloudflarestorage.com',
+      '/${settings.r2Bucket}',
+      {'list-type': '2', 'max-keys': '1'},
+    );
+    final response = await _signedRequest(settings, endpoint, Uint8List(0));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+          _uploadError(response).replaceFirst('R2 上传失败', 'R2 连接失败'));
+    }
+    return 'R2 连接正常 · Bucket ${settings.r2Bucket} 可访问';
+  }
+
   Future<String> uploadBytes(
     AppSettings settings,
     Uint8List bytes, {
@@ -71,6 +86,49 @@ class R2Service {
       throw Exception(_uploadError(response));
     }
     return '${settings.r2PublicBaseUrl.replaceAll(RegExp(r'/+$'), '')}/$key';
+  }
+
+  Future<http.Response> _signedRequest(
+    AppSettings settings,
+    Uri endpoint,
+    Uint8List bytes,
+  ) async {
+    final now = DateTime.now().toUtc();
+    final amzDate = _amzDate(now);
+    final dateStamp = amzDate.substring(0, 8);
+    final payloadHash = sha256.convert(bytes).toString();
+    final canonicalQuery = endpoint.queryParameters.entries
+        .map((e) =>
+            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    final canonicalHeaders =
+        'host:${endpoint.host}\nx-amz-content-sha256:$payloadHash\nx-amz-date:$amzDate\n';
+    const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+    final canonicalRequest = [
+      'GET',
+      endpoint.path,
+      canonicalQuery,
+      canonicalHeaders,
+      signedHeaders,
+      payloadHash,
+    ].join('\n');
+    final scope = '$dateStamp/auto/s3/aws4_request';
+    final stringToSign = [
+      'AWS4-HMAC-SHA256',
+      amzDate,
+      scope,
+      sha256.convert(utf8.encode(canonicalRequest)),
+    ].join('\n');
+    final signature = Hmac(
+      sha256,
+      _signingKey(settings.r2SecretAccessKey, dateStamp),
+    ).convert(utf8.encode(stringToSign));
+    return _client.get(endpoint, headers: {
+      'x-amz-content-sha256': payloadHash,
+      'x-amz-date': amzDate,
+      'authorization':
+          'AWS4-HMAC-SHA256 Credential=${settings.r2AccessKeyId}/$scope, SignedHeaders=$signedHeaders, Signature=$signature',
+    });
   }
 
   List<int> _signingKey(String secret, String date) {

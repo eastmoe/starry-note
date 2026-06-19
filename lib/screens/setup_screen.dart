@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_controller.dart';
 import '../widgets/settings_form.dart';
+import 'appearance_screen.dart';
 
 class SetupScreen extends StatelessWidget {
   const SetupScreen({super.key, required this.controller});
@@ -9,6 +10,23 @@ class SetupScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          title: const Text('连接博客'),
+          actions: [
+            IconButton(
+              tooltip: '外观设置',
+              icon: const Icon(Icons.palette_outlined),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => Scaffold(
+                    appBar: AppBar(title: const Text('外观设置')),
+                    body: AppearanceScreen(controller: controller),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         body: Stack(
           children: [
             const _Backdrop(),

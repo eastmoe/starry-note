@@ -62,6 +62,29 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> completeOnboarding() => updateSettings(
+        settings.copyWith(onboardingCompleted: true),
+      );
+
+  Future<String> testGit() async {
+    if (!await gitService.isAvailable) throw Exception('未找到 Git 命令。');
+    if (!hasRepository) return 'Git 已安装；连接仓库后可继续检测工作区。';
+    final branch = await gitService.currentBranch(settings.repositoryPath);
+    final changes = await gitService.status(settings.repositoryPath);
+    return 'Git 正常 · 分支 ${branch.isEmpty ? '(detached)' : branch} · '
+        '${changes.isEmpty ? '工作区干净' : '存在未提交改动'}';
+  }
+
+  Future<String> testR2() => r2Service.testConnection(settings);
+
+  Future<String> testBlog() async {
+    if (!hasRepository) throw Exception('尚未连接本地博客仓库。');
+    await _validateRepository(settings.repositoryPath);
+    final count =
+        (await articleService.loadAll(settings.repositoryPath)).length;
+    return 'Starry Blog 结构正常 · 已识别 $count 篇文章';
+  }
+
   Future<void> connectRepository(AppSettings value) async {
     await run(() async {
       settings = value;

@@ -65,4 +65,22 @@ void main() {
       ),
     );
   });
+
+  test('tests R2 with a signed read-only bucket request', () async {
+    late http.Request captured;
+    final service = R2Service(
+      client: MockClient((request) async {
+        captured = request;
+        return http.Response('<ListBucketResult/>', 200);
+      }),
+    );
+
+    final message = await service.testConnection(_settings);
+
+    expect(captured.method, 'GET');
+    expect(captured.url.path, '/images');
+    expect(captured.url.queryParameters['max-keys'], '1');
+    expect(captured.headers['authorization'], startsWith('AWS4-HMAC-SHA256 '));
+    expect(message, contains('R2 连接正常'));
+  });
 }
