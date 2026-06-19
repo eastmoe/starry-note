@@ -17,18 +17,18 @@ class StarryNoteApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'StarryNote',
-    debugShowCheckedModeBanner: false,
-    themeMode: ThemeMode.system,
-    theme: _theme(Brightness.light),
-    darkTheme: _theme(Brightness.dark),
-    home: AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) => controller.hasRepository
-          ? StudioScreen(controller: controller)
-          : SetupScreen(controller: controller),
-    ),
-  );
+        title: 'StarryNote',
+        debugShowCheckedModeBanner: false,
+        themeMode: ThemeMode.system,
+        theme: _theme(Brightness.light),
+        darkTheme: _theme(Brightness.dark),
+        home: AnimatedBuilder(
+          animation: controller,
+          builder: (context, _) => controller.hasRepository
+              ? StudioScreen(controller: controller)
+              : SetupScreen(controller: controller),
+        ),
+      );
 
   ThemeData _theme(Brightness brightness) {
     const seed = Color(0xff7567e8);

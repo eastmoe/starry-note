@@ -43,10 +43,10 @@ class SupabaseService {
   }
 
   Map<String, String> _headers(AppSettings settings) => {
-    'apikey': settings.supabaseKey,
-    'authorization': 'Bearer ${settings.supabaseKey}',
-    'content-type': 'application/json',
-  };
+        'apikey': settings.supabaseKey,
+        'authorization': 'Bearer ${settings.supabaseKey}',
+        'content-type': 'application/json',
+      };
 
   void _check(http.Response response) {
     if (response.statusCode < 200 || response.statusCode >= 300) {

@@ -9,90 +9,92 @@ class SetupScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: Stack(
-      children: [
-        const _Backdrop(),
-        SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 820),
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(28),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+        body: Stack(
+          children: [
+            const _Backdrop(),
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 820),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(28),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.primaryContainer,
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                              child: const Icon(Icons.auto_awesome),
-                            ),
-                            const SizedBox(width: 14),
-                            const Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            Row(
                               children: [
-                                Text(
-                                  'StarryNote',
-                                  style: TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w800,
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primaryContainer,
+                                    borderRadius: BorderRadius.circular(15),
                                   ),
+                                  child: const Icon(Icons.auto_awesome),
                                 ),
-                                Text('把文章写进你的星海。'),
+                                const SizedBox(width: 14),
+                                const Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'StarryNote',
+                                      style: TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    Text('把文章写进你的星海。'),
+                                  ],
+                                ),
                               ],
+                            ),
+                            SettingsForm(
+                              initialValue: controller.settings,
+                              connectMode: true,
+                              onSave: (settings) async {
+                                try {
+                                  await controller.connectRepository(settings);
+                                } catch (_) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content:
+                                            Text(controller.error ?? '连接失败'),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
                             ),
                           ],
                         ),
-                        SettingsForm(
-                          initialValue: controller.settings,
-                          connectMode: true,
-                          onSave: (settings) async {
-                            try {
-                              await controller.connectRepository(settings);
-                            } catch (_) {
-                              if (context.mounted)
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(controller.error ?? '连接失败'),
-                                  ),
-                                );
-                            }
-                          },
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
+            if (controller.busy) const LinearProgressIndicator(),
+          ],
         ),
-        if (controller.busy) const LinearProgressIndicator(),
-      ],
-    ),
-  );
+      );
 }
 
 class _Backdrop extends StatelessWidget {
   const _Backdrop();
   @override
   Widget build(BuildContext context) => Positioned.fill(
-    child: CustomPaint(
-      painter: _StarPainter(
-        color: Theme.of(context).colorScheme.primary.withValues(alpha: .13),
-      ),
-    ),
-  );
+        child: CustomPaint(
+          painter: _StarPainter(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: .13),
+          ),
+        ),
+      );
 }
 
 class _StarPainter extends CustomPainter {

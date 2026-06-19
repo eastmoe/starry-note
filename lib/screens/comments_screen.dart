@@ -22,79 +22,83 @@ class _CommentsScreenState extends State<CommentsScreen> {
 
   @override
   Widget build(BuildContext context) => Column(
-    children: [
-      Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            Text('评论管理', style: Theme.of(context).textTheme.titleLarge),
-            const Spacer(),
-            IconButton(
-              onPressed: _reload,
-              icon: const Icon(Icons.refresh),
-              tooltip: '刷新',
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Text('评论管理', style: Theme.of(context).textTheme.titleLarge),
+                const Spacer(),
+                IconButton(
+                  onPressed: _reload,
+                  icon: const Icon(Icons.refresh),
+                  tooltip: '刷新',
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-      Expanded(
-        child: FutureBuilder<List<BlogComment>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting)
-              return const Center(child: CircularProgressIndicator());
-            if (snapshot.hasError) return _empty('无法读取评论\n${snapshot.error}');
-            final comments = snapshot.data ?? [];
-            if (comments.isEmpty) return _empty('暂无评论');
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: comments.length,
-              itemBuilder: (context, index) {
-                final comment = comments[index];
-                return Card(
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    title: Row(
-                      children: [
-                        Expanded(
+          ),
+          Expanded(
+            child: FutureBuilder<List<BlogComment>>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return _empty('无法读取评论\n${snapshot.error}');
+                }
+                final comments = snapshot.data ?? [];
+                if (comments.isEmpty) return _empty('暂无评论');
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: comments.length,
+                  itemBuilder: (context, index) {
+                    final comment = comments[index];
+                    return Card(
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(16),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                comment.nickname,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                            Text(
+                              comment.slug,
+                              style: Theme.of(context).textTheme.labelMedium,
+                            ),
+                          ],
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 8),
                           child: Text(
-                            comment.nickname,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                            '${comment.content}\n${comment.createdAt.toLocal()}',
                           ),
                         ),
-                        Text(
-                          comment.slug,
-                          style: Theme.of(context).textTheme.labelMedium,
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          tooltip: '删除',
+                          onPressed: () => _delete(comment),
                         ),
-                      ],
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        '${comment.content}\n${comment.createdAt.toLocal()}',
                       ),
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      tooltip: '删除',
-                      onPressed: () => _delete(comment),
-                    ),
-                  ),
+                    );
+                  },
                 );
               },
-            );
-          },
-        ),
-      ),
-    ],
-  );
+            ),
+          ),
+        ],
+      );
 
   Widget _empty(String text) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Text(text, textAlign: TextAlign.center),
-    ),
-  );
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(text, textAlign: TextAlign.center),
+        ),
+      );
   Future<void> _delete(BlogComment comment) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -118,10 +122,11 @@ class _CommentsScreenState extends State<CommentsScreen> {
       await widget.controller.deleteComment(comment.id);
       _reload();
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('$error')));
+      }
     }
   }
 }

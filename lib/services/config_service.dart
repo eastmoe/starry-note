@@ -46,8 +46,9 @@ class ConfigService {
   }
 
   Future<void> saveRaw(String repositoryPath, String raw) async {
-    if (!raw.contains('export default'))
+    if (!raw.contains('export default')) {
       throw Exception('config.js 必须包含 export default。');
+    }
     await file(repositoryPath).writeAsString(raw);
   }
 

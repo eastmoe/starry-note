@@ -16,11 +16,11 @@ class BlogComment {
   final String? email;
 
   factory BlogComment.fromJson(Map<String, dynamic> json) => BlogComment(
-    id: '${json['id']}',
-    slug: '${json['slug'] ?? ''}',
-    nickname: '${json['nickname'] ?? '匿名访客'}',
-    content: '${json['content'] ?? ''}',
-    createdAt: DateTime.tryParse('${json['created_at']}') ?? DateTime.now(),
-    email: json['email'] as String?,
-  );
+        id: '${json['id']}',
+        slug: '${json['slug'] ?? ''}',
+        nickname: '${json['nickname'] ?? '匿名访客'}',
+        content: '${json['content'] ?? ''}',
+        createdAt: DateTime.tryParse('${json['created_at']}') ?? DateTime.now(),
+        email: json['email'] as String?,
+      );
 }

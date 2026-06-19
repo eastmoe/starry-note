@@ -26,8 +26,9 @@ class ArticleService {
     final raw = await file.readAsString();
     final parsed = parse(raw);
     parsed.filePath = file.path;
-    if (parsed.slug.isEmpty)
+    if (parsed.slug.isEmpty) {
       parsed.slug = p.basenameWithoutExtension(file.path);
+    }
     return parsed;
   }
 

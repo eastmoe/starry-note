@@ -23,13 +23,13 @@ class AppController extends ChangeNotifier {
     SupabaseService? supabaseService,
     ConfigService? configService,
     AssetService? assetService,
-  }) : settingsService = settingsService ?? const SettingsService(),
-       gitService = gitService ?? GitService(),
-       articleService = articleService ?? ArticleService(),
-       r2Service = r2Service ?? R2Service(),
-       supabaseService = supabaseService ?? SupabaseService(),
-       configService = configService ?? ConfigService(),
-       assetService = assetService ?? AssetService();
+  })  : settingsService = settingsService ?? const SettingsService(),
+        gitService = gitService ?? GitService(),
+        articleService = articleService ?? ArticleService(),
+        r2Service = r2Service ?? R2Service(),
+        supabaseService = supabaseService ?? SupabaseService(),
+        configService = configService ?? ConfigService(),
+        assetService = assetService ?? AssetService();
 
   final SettingsService settingsService;
   final GitService gitService;
@@ -97,8 +97,9 @@ class AppController extends ChangeNotifier {
     String? commit;
     await run(() async {
       if (article.title.trim().isEmpty) throw Exception('文章标题不能为空。');
-      if (article.slug.trim().isEmpty)
+      if (article.slug.trim().isEmpty) {
         article.slug = articleService.slugify(article.title);
+      }
       await articleService.save(settings.repositoryPath, article);
       if (await gitService.isAvailable) {
         commit = await gitService.saveCommit(
@@ -127,9 +128,9 @@ class AppController extends ChangeNotifier {
   Future<void> push() => run(() => gitService.push(settings));
 
   Future<void> undoLastCommit() => run(() async {
-    await gitService.undoLastCommit(settings.repositoryPath);
-    await refreshArticles();
-  });
+        await gitService.undoLastCommit(settings.repositoryPath);
+        await refreshArticles();
+      });
 
   Future<List<BlogComment>> comments() =>
       supabaseService.listComments(settings);

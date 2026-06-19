@@ -26,8 +26,7 @@ class Article {
   String get formattedDate =>
       '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
-  String toMarkdown() =>
-      '''---
+  String toMarkdown() => '''---
 title: ${_yaml(title)}
 date: $formattedDate
 category: ${_yaml(category)}

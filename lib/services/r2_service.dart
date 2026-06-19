@@ -68,7 +68,7 @@ class R2Service {
       body: bytes,
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('R2 上传失败 (${response.statusCode})：${response.body}');
+      throw Exception(_uploadError(response));
     }
     return '${settings.r2PublicBaseUrl.replaceAll(RegExp(r'/+$'), '')}/$key';
   }
@@ -85,6 +85,31 @@ class R2Service {
 
   String _amzDate(DateTime date) =>
       '${date.year.toString().padLeft(4, '0')}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}T${date.hour.toString().padLeft(2, '0')}${date.minute.toString().padLeft(2, '0')}${date.second.toString().padLeft(2, '0')}Z';
+
+  String _uploadError(http.Response response) {
+    final code = _xmlValue(response.body, 'Code');
+    final requestId = _xmlValue(response.body, 'RequestId');
+    final detail = switch (code) {
+      'AccessDenied' =>
+        'R2 拒绝访问。请确认填写的是 R2 对象存储 API 令牌生成的 Access Key ID 和 Secret Access Key（不是 Cloudflare API Token），且令牌对当前 Bucket 拥有“对象读和写”权限。',
+      'InvalidAccessKeyId' =>
+        'Access Key ID 无效。请从 Cloudflare R2 的“管理 R2 API 令牌”页面重新复制 S3 凭据。',
+      'SignatureDoesNotMatch' => '请求签名无效。请检查 Secret Access Key，并确认电脑的日期和时间准确。',
+      'NoSuchBucket' => '找不到配置的 Bucket，请检查 Account ID 和 Bucket 名称。',
+      _ => _xmlValue(response.body, 'Message') ?? 'R2 返回了未知错误。',
+    };
+    final requestSuffix = requestId == null ? '' : '（Request ID: $requestId）';
+    return 'R2 上传失败 (${response.statusCode})：$detail$requestSuffix';
+  }
+
+  String? _xmlValue(String xml, String tag) {
+    final match = RegExp(
+      '<$tag>([^<]*)</$tag>',
+      caseSensitive: false,
+    ).firstMatch(xml);
+    final value = match?.group(1)?.trim();
+    return value == null || value.isEmpty ? null : value;
+  }
 
   void _validate(AppSettings settings) {
     if (settings.r2AccountId.isEmpty ||

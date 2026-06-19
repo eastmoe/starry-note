@@ -67,14 +67,14 @@ class GitService {
       'rev-parse',
       '--short',
       'HEAD',
-    ], cwd: repositoryPath)).trim();
+    ], cwd: repositoryPath))
+        .trim();
   }
 
   Future<void> push(AppSettings settings) async {
     final branch = await currentBranch(settings.repositoryPath);
-    final remote = settings.gitToken.isEmpty
-        ? 'origin'
-        : _authenticatedUrl(settings);
+    final remote =
+        settings.gitToken.isEmpty ? 'origin' : _authenticatedUrl(settings);
     await _run(['push', remote, branch], cwd: settings.repositoryPath);
   }
 

@@ -33,7 +33,7 @@ Windows 也可以运行 `./scripts/bootstrap.ps1` 一次性生成平台工程并
 ## 配置提示
 
 - Supabase：查看评论可使用 anon key；删除评论需要拥有 DELETE 权限的 key，通常是 `service_role`。该 key 只保存在本机，绝不能放进博客的 `public/config.js` 或前端产物。
-- R2：创建具备目标 Bucket `Object Read & Write` 权限的 API Token，并配置公开自定义域名或 R2.dev URL。
+- R2：在“管理 R2 API 令牌”中创建具备目标 Bucket `Object Read & Write` 权限的令牌，应用内填写该令牌生成的 S3 `Access Key ID` 与 `Secret Access Key`（不要填写普通 Cloudflare API Token），并配置公开自定义域名或 R2.dev URL。
 - GitHub/GitLab 私有仓库：使用最小仓库读写权限的 PAT。程序只在 clone/push 子进程中使用它，不修改 remote URL。
 
 ## 验证

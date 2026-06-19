@@ -59,8 +59,9 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_config == null)
+    if (_config == null) {
       return const Center(child: Text('无法加载 public/config.js'));
+    }
     return Column(
       children: [
         Padding(
@@ -123,12 +124,12 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
   }
 
   Widget _field(String key, String label) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: TextField(
-      controller: _controllers[key],
-      decoration: InputDecoration(labelText: label),
-    ),
-  );
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextField(
+          controller: _controllers[key],
+          decoration: InputDecoration(labelText: label),
+        ),
+      );
   Future<void> _save() async {
     try {
       if (_tabs.index == 1) {
@@ -156,7 +157,7 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
           message: 'config: update site settings',
         );
       }
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -166,12 +167,14 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
             ),
           ),
         );
+      }
       await _load();
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('$error')));
+      }
     }
   }
 }

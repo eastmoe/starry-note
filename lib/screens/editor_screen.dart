@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -75,160 +73,166 @@ class _EditorScreenState extends State<EditorScreen>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(_title.text.isEmpty ? '新文章' : _title.text),
-      bottom: TabBar(
-        controller: _tabs,
-        tabs: const [
-          Tab(text: '编辑'),
-          Tab(text: '预览'),
-        ],
-      ),
-      actions: [
-        if (widget.article.filePath != null)
-          IconButton(
-            tooltip: '删除文章',
-            onPressed: _delete,
-            icon: const Icon(Icons.delete_outline),
+        appBar: AppBar(
+          title: Text(_title.text.isEmpty ? '新文章' : _title.text),
+          bottom: TabBar(
+            controller: _tabs,
+            tabs: const [
+              Tab(text: '编辑'),
+              Tab(text: '预览'),
+            ],
           ),
-        Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: FilledButton.icon(
-            onPressed: widget.controller.busy ? null : _save,
-            icon: const Icon(Icons.save_outlined),
-            label: const Text('保存并提交'),
-          ),
-        ),
-      ],
-    ),
-    body: TabBarView(controller: _tabs, children: [_editor(), _preview()]),
-  );
-
-  Widget _editor() => SingleChildScrollView(
-    padding: const EdgeInsets.all(18),
-    child: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1080),
-        child: Column(
-          children: [
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final fields = [
-                  _field(
-                    _title,
-                    '标题',
-                    onChanged: (_) => setState(() {
-                      if (_slug.text.isEmpty)
-                        _slug.text = widget.controller.articleService.slugify(
-                          _title.text,
-                        );
-                    }),
-                  ),
-                  _field(_slug, 'Slug / 文件名'),
-                  _field(_category, '分类'),
-                  _field(_author, '作者'),
-                ];
-                if (constraints.maxWidth < 700) return Column(children: fields);
-                return Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(child: fields[0]),
-                        const SizedBox(width: 12),
-                        Expanded(child: fields[1]),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Expanded(child: fields[2]),
-                        const SizedBox(width: 12),
-                        Expanded(child: fields[3]),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: InputDecorator(
-                    decoration: const InputDecoration(labelText: '日期'),
-                    child: Text(_formatDate(_date)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _pickDate,
-                  icon: const Icon(Icons.calendar_month),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _field(_cover, '封面 URL'),
-            _field(_excerpt, '摘要', maxLines: 2),
-            _field(_tags, '标签（逗号分隔）'),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Text('正文', style: Theme.of(context).textTheme.titleMedium),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: _uploading ? null : _pasteImage,
-                  icon: _uploading
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.add_photo_alternate_outlined),
-                  label: const Text('粘贴图片到 R2'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            CallbackShortcuts(
-              bindings: {
-                const SingleActivator(LogicalKeyboardKey.keyV, control: true):
-                    _paste,
-              },
-              child: TextField(
-                controller: _body,
-                minLines: 22,
-                maxLines: null,
-                keyboardType: TextInputType.multiline,
-                style: const TextStyle(fontFamily: 'monospace', height: 1.55),
-                decoration: const InputDecoration(
-                  hintText: '# 从这里开始写作…',
-                  alignLabelWithHint: true,
-                ),
+          actions: [
+            if (widget.article.filePath != null)
+              IconButton(
+                tooltip: '删除文章',
+                onPressed: _delete,
+                icon: const Icon(Icons.delete_outline),
+              ),
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: FilledButton.icon(
+                onPressed: widget.controller.busy ? null : _save,
+                icon: const Icon(Icons.save_outlined),
+                label: const Text('保存并提交'),
               ),
             ),
           ],
         ),
-      ),
-    ),
-  );
+        body: TabBarView(controller: _tabs, children: [_editor(), _preview()]),
+      );
+
+  Widget _editor() => SingleChildScrollView(
+        padding: const EdgeInsets.all(18),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1080),
+            child: Column(
+              children: [
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final fields = [
+                      _field(
+                        _title,
+                        '标题',
+                        onChanged: (_) => setState(() {
+                          if (_slug.text.isEmpty) {
+                            _slug.text =
+                                widget.controller.articleService.slugify(
+                              _title.text,
+                            );
+                          }
+                        }),
+                      ),
+                      _field(_slug, 'Slug / 文件名'),
+                      _field(_category, '分类'),
+                      _field(_author, '作者'),
+                    ];
+                    if (constraints.maxWidth < 700) {
+                      return Column(children: fields);
+                    }
+                    return Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: fields[0]),
+                            const SizedBox(width: 12),
+                            Expanded(child: fields[1]),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Expanded(child: fields[2]),
+                            const SizedBox(width: 12),
+                            Expanded(child: fields[3]),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InputDecorator(
+                        decoration: const InputDecoration(labelText: '日期'),
+                        child: Text(_formatDate(_date)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: _pickDate,
+                      icon: const Icon(Icons.calendar_month),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _field(_cover, '封面 URL'),
+                _field(_excerpt, '摘要', maxLines: 2),
+                _field(_tags, '标签（逗号分隔）'),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text('正文', style: Theme.of(context).textTheme.titleMedium),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: _uploading ? null : _pasteImage,
+                      icon: _uploading
+                          ? const SizedBox.square(
+                              dimension: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.add_photo_alternate_outlined),
+                      label: const Text('粘贴图片到 R2'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                CallbackShortcuts(
+                  bindings: {
+                    const SingleActivator(LogicalKeyboardKey.keyV,
+                        control: true): _paste,
+                  },
+                  child: TextField(
+                    controller: _body,
+                    minLines: 22,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    style:
+                        const TextStyle(fontFamily: 'monospace', height: 1.55),
+                    decoration: const InputDecoration(
+                      hintText: '# 从这里开始写作…',
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 
   Widget _preview() => Markdown(
-    data: _body.text,
-    selectable: true,
-    padding: const EdgeInsets.all(28),
-  );
+        data: _body.text,
+        selectable: true,
+        padding: const EdgeInsets.all(28),
+      );
 
   Widget _field(
     TextEditingController controller,
     String label, {
     int maxLines = 1,
     ValueChanged<String>? onChanged,
-  }) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: TextField(
-      controller: controller,
-      maxLines: maxLines,
-      onChanged: onChanged,
-      decoration: InputDecoration(labelText: label),
-    ),
-  );
+  }) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextField(
+          controller: controller,
+          maxLines: maxLines,
+          onChanged: onChanged,
+          decoration: InputDecoration(labelText: label),
+        ),
+      );
 
   Future<void> _paste() async {
     final image = await Pasteboard.image;
@@ -341,6 +345,6 @@ class _EditorScreenState extends State<EditorScreen>
   String _formatDate(DateTime date) =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   void _message(String value) => ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(value)));
+        context,
+      ).showSnackBar(SnackBar(content: Text(value)));
 }
