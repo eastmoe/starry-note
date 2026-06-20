@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class AppSettings {
   const AppSettings({
     this.gitUrl = '',
@@ -18,6 +20,11 @@ class AppSettings {
     this.darkMode = false,
     this.pureBlackMode = false,
     this.primaryColorValue = 0xff7567e8,
+    this.autoBackupEnabled = false,
+    this.backupDirectory = '',
+    this.backupIntervalHours = 24,
+    this.backupTables = const [],
+    this.lastBackupAt = '',
   });
 
   final String gitUrl;
@@ -38,6 +45,11 @@ class AppSettings {
   final bool darkMode;
   final bool pureBlackMode;
   final int primaryColorValue;
+  final bool autoBackupEnabled;
+  final String backupDirectory;
+  final int backupIntervalHours;
+  final List<String> backupTables;
+  final String lastBackupAt;
 
   AppSettings copyWith({
     String? gitUrl,
@@ -58,6 +70,11 @@ class AppSettings {
     bool? darkMode,
     bool? pureBlackMode,
     int? primaryColorValue,
+    bool? autoBackupEnabled,
+    String? backupDirectory,
+    int? backupIntervalHours,
+    List<String>? backupTables,
+    String? lastBackupAt,
   }) =>
       AppSettings(
         gitUrl: gitUrl ?? this.gitUrl,
@@ -78,6 +95,11 @@ class AppSettings {
         darkMode: darkMode ?? this.darkMode,
         pureBlackMode: pureBlackMode ?? this.pureBlackMode,
         primaryColorValue: primaryColorValue ?? this.primaryColorValue,
+        autoBackupEnabled: autoBackupEnabled ?? this.autoBackupEnabled,
+        backupDirectory: backupDirectory ?? this.backupDirectory,
+        backupIntervalHours: backupIntervalHours ?? this.backupIntervalHours,
+        backupTables: backupTables ?? this.backupTables,
+        lastBackupAt: lastBackupAt ?? this.lastBackupAt,
       );
 
   Map<String, String> toMap() => {
@@ -99,6 +121,11 @@ class AppSettings {
         'darkMode': darkMode.toString(),
         'pureBlackMode': pureBlackMode.toString(),
         'primaryColorValue': primaryColorValue.toString(),
+        'autoBackupEnabled': autoBackupEnabled.toString(),
+        'backupDirectory': backupDirectory,
+        'backupIntervalHours': backupIntervalHours.toString(),
+        'backupTables': jsonEncode(backupTables),
+        'lastBackupAt': lastBackupAt,
       };
 
   factory AppSettings.fromMap(Map<String, String> map) => AppSettings(
@@ -121,5 +148,20 @@ class AppSettings {
         pureBlackMode: map['pureBlackMode'] == 'true',
         primaryColorValue:
             int.tryParse(map['primaryColorValue'] ?? '') ?? 0xff7567e8,
+        autoBackupEnabled: map['autoBackupEnabled'] == 'true',
+        backupDirectory: map['backupDirectory'] ?? '',
+        backupIntervalHours:
+            int.tryParse(map['backupIntervalHours'] ?? '') ?? 24,
+        backupTables: _decodeStringList(map['backupTables']),
+        lastBackupAt: map['lastBackupAt'] ?? '',
       );
+
+  static List<String> _decodeStringList(String? value) {
+    if (value == null || value.isEmpty) return const [];
+    try {
+      return (jsonDecode(value) as List).map((item) => '$item').toList();
+    } catch (_) {
+      return value.split(',').where((item) => item.isNotEmpty).toList();
+    }
+  }
 }

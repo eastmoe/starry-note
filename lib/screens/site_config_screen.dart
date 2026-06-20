@@ -133,19 +133,7 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
         _menu(),
         _fonts(),
         _friendLinks(),
-        _scroll([
-          _heading('评论'),
-          _field('gravatar', 'Gravatar 镜像地址'),
-          _switch('启用关键词过滤', _config!.keywordFilterEnabled,
-              (v) => _config!.keywordFilterEnabled = v),
-          _field('filterKeywords', '过滤关键词（每行一个）', lines: 5),
-          _field('filterReplacement', '替换文本'),
-          _heading('Supabase 前端数据库'),
-          const Text('这里保存的是博客前端使用的公开 anon key；管理密钥仍在“连接”中安全保存。'),
-          const SizedBox(height: 12),
-          _field('supabaseUrl', 'Supabase URL'),
-          _field('anonKey', 'Anon Public Key', lines: 3)
-        ]),
+        _commentsAndDatabase(),
         _seo(),
         _advanced(),
       ])),
@@ -333,6 +321,79 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
             ]),
           ));
         }),
+      ]);
+
+  Widget _commentsAndDatabase() => _scroll([
+        _heading('评论'),
+        _field('gravatar', 'Gravatar 镜像地址'),
+        Row(children: [
+          _heading('验证问题'),
+          const Spacer(),
+          FilledButton.tonalIcon(
+            onPressed: () => _editVerificationQuestion(),
+            icon: const Icon(Icons.add),
+            label: const Text('添加问题'),
+          ),
+        ]),
+        const Text('访客提交评论时随机显示一题；任意一个答案匹配即可，博客端会忽略大小写与首尾空格。'),
+        const SizedBox(height: 10),
+        if (_config!.verificationQuestions.isEmpty)
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.quiz_outlined),
+              title: Text('尚未配置验证问题'),
+              subtitle: Text('建议至少添加两题，且每题提供常见写法作为多个答案。'),
+            ),
+          ),
+        ..._config!.verificationQuestions.asMap().entries.map((entry) {
+          final item = entry.value;
+          return Card(
+            child: ListTile(
+              leading: CircleAvatar(child: Text('${entry.key + 1}')),
+              title: Text(item.question),
+              subtitle: Text('可接受答案：${item.answers.join('、')}'),
+              trailing: Wrap(children: [
+                IconButton(
+                  tooltip: '上移',
+                  onPressed: entry.key == 0
+                      ? null
+                      : () => _moveVerificationQuestion(entry.key, -1),
+                  icon: const Icon(Icons.arrow_upward),
+                ),
+                IconButton(
+                  tooltip: '下移',
+                  onPressed:
+                      entry.key == _config!.verificationQuestions.length - 1
+                          ? null
+                          : () => _moveVerificationQuestion(entry.key, 1),
+                  icon: const Icon(Icons.arrow_downward),
+                ),
+                IconButton(
+                  tooltip: '编辑',
+                  onPressed: () => _editVerificationQuestion(index: entry.key),
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+                IconButton(
+                  tooltip: '删除',
+                  onPressed: () => setState(
+                    () => _config!.verificationQuestions.removeAt(entry.key),
+                  ),
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ]),
+            ),
+          );
+        }),
+        _heading('关键词过滤'),
+        _switch('启用关键词过滤', _config!.keywordFilterEnabled,
+            (v) => _config!.keywordFilterEnabled = v),
+        _field('filterKeywords', '过滤关键词（每行一个）', lines: 5),
+        _field('filterReplacement', '替换文本'),
+        _heading('Supabase 前端数据库'),
+        const Text('这里保存的是博客前端使用的公开 anon key；管理密钥仍在“连接”中安全保存。'),
+        const SizedBox(height: 12),
+        _field('supabaseUrl', 'Supabase URL'),
+        _field('anonKey', 'Anon Public Key', lines: 3),
       ]);
 
   Widget _seo() => _scroll([
@@ -701,6 +762,73 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
     for (final controller in [name, url, description, avatar]) {
       controller.dispose();
     }
+  }
+
+  void _moveVerificationQuestion(int index, int delta) => setState(() {
+        final item = _config!.verificationQuestions.removeAt(index);
+        _config!.verificationQuestions.insert(index + delta, item);
+      });
+
+  Future<void> _editVerificationQuestion({int? index}) async {
+    final item = index == null
+        ? VerificationQuestionConfig(question: '')
+        : _config!.verificationQuestions[index];
+    final question = TextEditingController(text: item.question);
+    final answers = TextEditingController(text: item.answers.join('\n'));
+    final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(index == null ? '添加验证问题' : '编辑验证问题'),
+            content: SizedBox(
+              width: 520,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                TextField(
+                  controller: question,
+                  decoration: const InputDecoration(labelText: '问题'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: answers,
+                  minLines: 3,
+                  maxLines: 7,
+                  decoration: const InputDecoration(
+                    labelText: '可接受答案（每行一个）',
+                    helperText: '例如：12、十二、十二个分别占一行',
+                  ),
+                ),
+              ]),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('确定'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    final answerList = _lines(answers.text);
+    if (ok && question.text.trim().isNotEmpty && answerList.isNotEmpty) {
+      final updated = VerificationQuestionConfig(
+        question: question.text.trim(),
+        answers: answerList,
+      );
+      setState(() {
+        if (index == null) {
+          _config!.verificationQuestions.add(updated);
+        } else {
+          _config!.verificationQuestions[index] = updated;
+        }
+      });
+    } else if (ok) {
+      _message('问题和至少一个答案不能为空。');
+    }
+    question.dispose();
+    answers.dispose();
   }
 
   Future<void> _editRobotsRule({int? index}) async {

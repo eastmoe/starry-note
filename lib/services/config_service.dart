@@ -50,6 +50,13 @@ class RobotsRuleConfig {
   List<String> disallow;
 }
 
+class VerificationQuestionConfig {
+  VerificationQuestionConfig({required this.question, List<String>? answers})
+      : answers = answers ?? [];
+  String question;
+  List<String> answers;
+}
+
 class SiteConfig {
   SiteConfig({required this.raw});
   String raw;
@@ -81,6 +88,7 @@ class SiteConfig {
   int bellShakeMs = 620;
   int articleTransitionMs = 720;
   String gravatarBaseUrl = '';
+  List<VerificationQuestionConfig> verificationQuestions = [];
   bool keywordFilterEnabled = false;
   List<String> keywordFilterKeywords = [];
   String keywordFilterReplacement = '***';
@@ -163,6 +171,9 @@ class ConfigService {
           _parseStringArray(_value(raw, ['seo', 'sitemap', 'extraPaths']) ?? '')
       ..robotsEnabled = _bool(raw, ['seo', 'robots', 'enabled'], true);
     c.menu = _parseMenu(_value(raw, ['menu']) ?? '');
+    c.verificationQuestions = _parseVerificationQuestions(
+      _value(raw, ['comments', 'verification', 'questions']) ?? '',
+    );
     c.fontFaces = _parseFontFaces(_value(raw, ['fontFaces']) ?? '');
     c.friendLinks = _parseFriendLinks(_value(raw, ['friendLinks']) ?? '');
     c.robotsRules = _parseRobotsRules(
@@ -212,6 +223,8 @@ class ConfigService {
       ['animations', 'bellShakeMs']: '${c.bellShakeMs}',
       ['animations', 'articleTransitionMs']: '${c.articleTransitionMs}',
       ['comments', 'gravatarBaseUrl']: _quote(c.gravatarBaseUrl),
+      ['comments', 'verification', 'questions']:
+          _verificationQuestionsSource(c.verificationQuestions),
       ['comments', 'keywordFilter', 'enabled']: '${c.keywordFilterEnabled}',
       ['comments', 'keywordFilter', 'keywords']:
           _stringArraySource(c.keywordFilterKeywords),
@@ -408,6 +421,23 @@ class ConfigService {
           disallow: _parseStringArray(disallow ?? ''),
         );
       }).toList();
+  List<VerificationQuestionConfig> _parseVerificationQuestions(
+    String source,
+  ) =>
+      RegExp(r'\{([\s\S]*?)\}')
+          .allMatches(source)
+          .map((m) {
+            final block = m.group(1)!;
+            final answers = RegExp(r'\banswers\s*:\s*(\[[\s\S]*?\])')
+                .firstMatch(block)
+                ?.group(1);
+            return VerificationQuestionConfig(
+              question: _blockString(block, 'question'),
+              answers: _parseStringArray(answers ?? ''),
+            );
+          })
+          .where((item) => item.question.isNotEmpty)
+          .toList();
   String _blockString(String block, String key, [String fallback = '']) =>
       RegExp("\\b$key\\s*:\\s*(['\"])(.*?)\\1").firstMatch(block)?.group(2) ??
       fallback;
@@ -425,6 +455,10 @@ class ConfigService {
       '[${items.map(_quote).join(', ')}]';
   String _robotsRulesSource(List<RobotsRuleConfig> rules) =>
       '[\n${rules.map((e) => "        { userAgent: ${_quote(e.userAgent)}, allow: ${_stringArraySource(e.allow)}, disallow: ${_stringArraySource(e.disallow)} }").join(',\n')}\n      ]';
+  String _verificationQuestionsSource(
+    List<VerificationQuestionConfig> questions,
+  ) =>
+      '[\n${questions.map((e) => "        { question: ${_quote(e.question)}, answers: ${_stringArraySource(e.answers)} }").join(',\n')}\n      ]';
   String _fontFacesSource(List<FontFaceConfig> items) =>
       '[\n${items.map((e) => "    { family: ${_quote(e.family)}, src: ${_quote(e.src)}, format: ${_quote(e.format)}, weight: ${_quote(e.weight)}, style: ${_quote(e.style)}, display: ${_quote(e.display)} }").join(',\n')}\n  ]';
 }

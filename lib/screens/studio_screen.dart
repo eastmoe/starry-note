@@ -4,6 +4,7 @@ import '../app_controller.dart';
 import 'articles_screen.dart';
 import 'assets_screen.dart';
 import 'appearance_screen.dart';
+import 'backup_screen.dart';
 import 'comments_screen.dart';
 import 'connection_screen.dart';
 import 'site_config_screen.dart';
@@ -33,6 +34,10 @@ class _StudioScreenState extends State<StudioScreen> {
       label: Text('连接'),
     ),
     NavigationRailDestination(
+      icon: Icon(Icons.backup_outlined),
+      label: Text('备份'),
+    ),
+    NavigationRailDestination(
       icon: Icon(Icons.palette_outlined),
       label: Text('外观'),
     ),
@@ -46,6 +51,7 @@ class _StudioScreenState extends State<StudioScreen> {
       SiteConfigScreen(controller: widget.controller),
       AssetsScreen(controller: widget.controller),
       ConnectionScreen(controller: widget.controller),
+      BackupScreen(controller: widget.controller),
       AppearanceScreen(controller: widget.controller),
     ];
     final compact = MediaQuery.sizeOf(context).width < 760;

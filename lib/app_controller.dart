@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,7 @@ import 'models/article.dart';
 import 'models/comment.dart';
 import 'services/article_service.dart';
 import 'services/asset_service.dart';
+import 'services/backup_service.dart';
 import 'services/config_service.dart';
 import 'services/git_service.dart';
 import 'services/r2_service.dart';
@@ -23,13 +25,15 @@ class AppController extends ChangeNotifier {
     SupabaseService? supabaseService,
     ConfigService? configService,
     AssetService? assetService,
+    BackupService? backupService,
   })  : settingsService = settingsService ?? const SettingsService(),
         gitService = gitService ?? GitService(),
         articleService = articleService ?? ArticleService(),
         r2Service = r2Service ?? R2Service(),
         supabaseService = supabaseService ?? SupabaseService(),
         configService = configService ?? ConfigService(),
-        assetService = assetService ?? AssetService();
+        assetService = assetService ?? AssetService(),
+        backupService = backupService ?? BackupService();
 
   final SettingsService settingsService;
   final GitService gitService;
@@ -38,12 +42,15 @@ class AppController extends ChangeNotifier {
   final SupabaseService supabaseService;
   final ConfigService configService;
   final AssetService assetService;
+  final BackupService backupService;
 
   AppSettings settings = const AppSettings();
   List<Article> articles = [];
   bool busy = false;
   bool initialized = false;
   String? error;
+  String? backupStatus;
+  Timer? _backupTimer;
 
   bool get hasRepository =>
       settings.repositoryPath.isNotEmpty &&
@@ -53,12 +60,15 @@ class AppController extends ChangeNotifier {
     settings = await settingsService.load();
     if (hasRepository) await refreshArticles();
     initialized = true;
+    _scheduleBackup();
     notifyListeners();
+    unawaited(_runScheduledBackupIfDue());
   }
 
   Future<void> updateSettings(AppSettings value) async {
     settings = value;
     await settingsService.save(value);
+    _scheduleBackup();
     notifyListeners();
   }
 
@@ -178,6 +188,31 @@ class AppController extends ChangeNotifier {
   Future<void> deleteComment(String id) =>
       run(() => supabaseService.deleteComment(settings, id));
 
+  Future<List<SupabaseTableInfo>> backupTables() =>
+      backupService.listTables(settings);
+
+  Future<BackupResult> backupDatabase({
+    String? outputPath,
+    List<String>? tables,
+  }) async {
+    late BackupResult result;
+    await run(() async {
+      final path =
+          outputPath ?? backupService.automaticPath(settings.backupDirectory);
+      result = await backupService.export(
+        settings: settings,
+        outputPath: path,
+        tables: tables ?? settings.backupTables,
+      );
+      settings =
+          settings.copyWith(lastBackupAt: DateTime.now().toIso8601String());
+      await settingsService.save(settings);
+      backupStatus =
+          '已备份 ${result.tableCount} 个表、${result.rowCount} 行到 ${result.path}';
+    });
+    return result;
+  }
+
   Future<T?> run<T>(Future<T> Function() action) async {
     busy = true;
     error = null;
@@ -205,5 +240,39 @@ class AppController extends ChangeNotifier {
         '该目录不是 Starry Blog：缺少 public/config.js 或 public/articles。',
       );
     }
+  }
+
+  void _scheduleBackup() {
+    _backupTimer?.cancel();
+    if (!settings.autoBackupEnabled || settings.backupDirectory.isEmpty) return;
+    _backupTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => unawaited(_runScheduledBackupIfDue()),
+    );
+  }
+
+  Future<void> _runScheduledBackupIfDue() async {
+    if (busy ||
+        !settings.autoBackupEnabled ||
+        settings.backupDirectory.isEmpty) {
+      return;
+    }
+    final last = DateTime.tryParse(settings.lastBackupAt);
+    final interval =
+        Duration(hours: settings.backupIntervalHours.clamp(1, 8760));
+    if (last != null && DateTime.now().difference(last) < interval) return;
+    try {
+      await backupDatabase();
+    } catch (exception) {
+      backupStatus =
+          '自动备份失败：${exception.toString().replaceFirst('Exception: ', '')}';
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _backupTimer?.cancel();
+    super.dispose();
   }
 }
