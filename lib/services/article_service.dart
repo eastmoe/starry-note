@@ -66,6 +66,10 @@ class ArticleService {
       excerpt: values['excerpt'] ?? '',
       tags: tags,
       body: body,
+      page: (values['page'] ?? '').toLowerCase() == 'true',
+      description: values['description'] ?? '',
+      canonical: values['canonical'] ?? '',
+      noindex: (values['noindex'] ?? '').toLowerCase() == 'true',
     );
   }
 
@@ -103,7 +107,11 @@ class ArticleService {
             'author': article.author,
             'cover': article.cover,
             'excerpt': article.excerpt,
+            'description': article.description,
             'tags': article.tags,
+            'page': article.page,
+            'canonical': article.canonical,
+            'noindex': article.noindex,
           },
         )
         .toList();

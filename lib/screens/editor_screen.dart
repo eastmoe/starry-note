@@ -27,9 +27,13 @@ class _EditorScreenState extends State<EditorScreen>
   late final TextEditingController _author;
   late final TextEditingController _cover;
   late final TextEditingController _excerpt;
+  late final TextEditingController _description;
+  late final TextEditingController _canonical;
   late final TextEditingController _tags;
   late final TextEditingController _body;
   late DateTime _date;
+  late bool _page;
+  late bool _noindex;
   var _uploading = false;
 
   @override
@@ -43,10 +47,14 @@ class _EditorScreenState extends State<EditorScreen>
     _author = TextEditingController(text: article.author);
     _cover = TextEditingController(text: article.cover);
     _excerpt = TextEditingController(text: article.excerpt);
+    _description = TextEditingController(text: article.description);
+    _canonical = TextEditingController(text: article.canonical);
     _tags = TextEditingController(text: article.tags.join(', '));
     _body = TextEditingController(text: article.body)
       ..addListener(_refreshPreview);
     _date = article.date;
+    _page = article.page;
+    _noindex = article.noindex;
   }
 
   void _refreshPreview() {
@@ -63,6 +71,8 @@ class _EditorScreenState extends State<EditorScreen>
       _author,
       _cover,
       _excerpt,
+      _description,
+      _canonical,
       _tags,
       _body,
     ]) {
@@ -170,6 +180,27 @@ class _EditorScreenState extends State<EditorScreen>
                 _field(_cover, '封面 URL'),
                 _field(_excerpt, '摘要', maxLines: 2),
                 _field(_tags, '标签（逗号分隔）'),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('作为独立页面发布'),
+                  subtitle: const Text('页面使用文章排版，但不显示上一篇/下一篇与评论区。'),
+                  value: _page,
+                  onChanged: (value) => setState(() => _page = value),
+                ),
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  title: const Text('文章 SEO（可选）'),
+                  children: [
+                    _field(_description, 'Meta Description', maxLines: 2),
+                    _field(_canonical, 'Canonical URL'),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('禁止搜索引擎收录'),
+                      value: _noindex,
+                      onChanged: (value) => setState(() => _noindex = value),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -421,12 +452,16 @@ class _EditorScreenState extends State<EditorScreen>
       ..author = _author.text.trim()
       ..cover = _cover.text.trim()
       ..excerpt = _excerpt.text.trim()
+      ..description = _description.text.trim()
+      ..canonical = _canonical.text.trim()
+      ..noindex = _noindex
       ..tags = _tags.text
           .split(RegExp('[,，]'))
           .map((e) => e.trim())
           .where((e) => e.isNotEmpty)
           .toList()
       ..body = _body.text
+      ..page = _page
       ..date = _date;
     try {
       final commit = await widget.controller.saveArticle(article);

@@ -13,7 +13,11 @@ category: tech
 author: Starry
 cover: ''
 excerpt: 测试摘要
+description: 搜索摘要
+canonical: https://example.com/article
+noindex: true
 tags: [Flutter, 随笔]
+page: true
 ---
 
 # 正文
@@ -21,6 +25,10 @@ tags: [Flutter, 随笔]
     expect(article.title, '一篇文章');
     expect(article.formattedDate, '2026-06-19');
     expect(article.tags, ['Flutter', '随笔']);
+    expect(article.page, isTrue);
+    expect(article.description, '搜索摘要');
+    expect(article.canonical, 'https://example.com/article');
+    expect(article.noindex, isTrue);
     expect(article.body, contains('# 正文'));
   });
 
@@ -44,6 +52,7 @@ tags: [Flutter, 随笔]
         excerpt: 'Hi',
         tags: ['Flutter'],
         body: '# Hello',
+        page: true,
       ),
     );
     final index = await File(
@@ -51,5 +60,10 @@ tags: [Flutter, 随笔]
     ).readAsString();
     expect(index, contains('"slug": "hello"'));
     expect(index, contains('"date": "2026-06-19"'));
+    expect(index, contains('"page": true'));
+    final markdown = await File(
+      '${articles.path}${Platform.pathSeparator}hello.md',
+    ).readAsString();
+    expect(markdown, contains('page: true'));
   });
 }

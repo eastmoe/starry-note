@@ -24,7 +24,7 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 6, vsync: this);
+    _tabs = TabController(length: 8, vsync: this);
     _load();
   }
 
@@ -60,8 +60,15 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
       add('shakeMs', v.bellShakeMs);
       add('articleMs', v.articleTransitionMs);
       add('gravatar', v.gravatarBaseUrl);
+      add('filterKeywords', v.keywordFilterKeywords.join('\n'));
+      add('filterReplacement', v.keywordFilterReplacement);
       add('supabaseUrl', v.supabaseUrl);
       add('anonKey', v.supabaseAnonKey);
+      add('seoDescription', v.seoDescription);
+      add('canonicalUrl', v.seoCanonicalUrl);
+      add('seoKeywords', v.seoKeywords.join(', '));
+      add('titleTemplate', v.seoTitleTemplate);
+      add('extraPaths', v.sitemapExtraPaths.join('\n'));
       add('raw', v.raw);
     } catch (e) {
       _message('$e');
@@ -95,7 +102,9 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
             Tab(text: '外观与动画'),
             Tab(text: '菜单'),
             Tab(text: '字体'),
+            Tab(text: '友情链接'),
             Tab(text: '评论与数据库'),
+            Tab(text: 'SEO'),
             Tab(text: '高级'),
           ])),
           const SizedBox(width: 12),
@@ -123,15 +132,21 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
         _appearance(),
         _menu(),
         _fonts(),
+        _friendLinks(),
         _scroll([
           _heading('评论'),
           _field('gravatar', 'Gravatar 镜像地址'),
+          _switch('启用关键词过滤', _config!.keywordFilterEnabled,
+              (v) => _config!.keywordFilterEnabled = v),
+          _field('filterKeywords', '过滤关键词（每行一个）', lines: 5),
+          _field('filterReplacement', '替换文本'),
           _heading('Supabase 前端数据库'),
           const Text('这里保存的是博客前端使用的公开 anon key；管理密钥仍在“连接”中安全保存。'),
           const SizedBox(height: 12),
           _field('supabaseUrl', 'Supabase URL'),
           _field('anonKey', 'Anon Public Key', lines: 3)
         ]),
+        _seo(),
         _advanced(),
       ])),
     ]);
@@ -263,6 +278,105 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
               )))),
     ]);
   }
+
+  Widget _friendLinks() => _scroll([
+        Row(children: [
+          _heading('友情链接'),
+          const Spacer(),
+          FilledButton.tonalIcon(
+              onPressed: () => _editFriendLink(),
+              icon: const Icon(Icons.add_link),
+              label: const Text('添加友链'))
+        ]),
+        const Text('名称与网址必填；头像可从站点图片中选择，也可填写外链。'),
+        const SizedBox(height: 10),
+        if (_config!.friendLinks.isEmpty)
+          const Card(child: ListTile(title: Text('还没有友情链接'))),
+        ..._config!.friendLinks.asMap().entries.map((entry) {
+          final item = entry.value;
+          final avatar = _publicFile(item.avatar);
+          return Card(
+              child: ListTile(
+            leading: CircleAvatar(
+                backgroundImage: avatar != null && avatar.existsSync()
+                    ? FileImage(avatar)
+                    : null,
+                child: avatar == null || !avatar.existsSync()
+                    ? const Icon(Icons.link)
+                    : null),
+            title: Text(item.name),
+            subtitle: Text([item.url, item.description]
+                .where((value) => value.isNotEmpty)
+                .join('\n')),
+            trailing: Wrap(children: [
+              IconButton(
+                  tooltip: '上移',
+                  onPressed: entry.key == 0
+                      ? null
+                      : () => _moveFriendLink(entry.key, -1),
+                  icon: const Icon(Icons.arrow_upward)),
+              IconButton(
+                  tooltip: '下移',
+                  onPressed: entry.key == _config!.friendLinks.length - 1
+                      ? null
+                      : () => _moveFriendLink(entry.key, 1),
+                  icon: const Icon(Icons.arrow_downward)),
+              IconButton(
+                  tooltip: '编辑',
+                  onPressed: () => _editFriendLink(index: entry.key),
+                  icon: const Icon(Icons.edit_outlined)),
+              IconButton(
+                  tooltip: '删除',
+                  onPressed: () =>
+                      setState(() => _config!.friendLinks.removeAt(entry.key)),
+                  icon: const Icon(Icons.delete_outline)),
+            ]),
+          ));
+        }),
+      ]);
+
+  Widget _seo() => _scroll([
+        _heading('搜索与分享'),
+        _field('seoDescription', '站点描述', lines: 3),
+        _field('canonicalUrl', 'Canonical 站点根地址'),
+        _field('seoKeywords', '关键词（逗号分隔）'),
+        _field('titleTemplate', '标题模板（如 {title} | {siteName}）'),
+        _assetChooser('社交分享图', _config!.seoSocialImage,
+            (v) => setState(() => _config!.seoSocialImage = v),
+            allowEmpty: true),
+        _heading('Sitemap'),
+        _switch('构建时生成 sitemap.xml', _config!.sitemapEnabled,
+            (v) => _config!.sitemapEnabled = v),
+        _field('extraPaths', '额外收录路径（每行一个）', lines: 4),
+        Row(children: [
+          _heading('Robots 规则'),
+          const Spacer(),
+          FilledButton.tonalIcon(
+              onPressed: () => _editRobotsRule(),
+              icon: const Icon(Icons.add),
+              label: const Text('添加规则'))
+        ]),
+        _switch('构建时生成 robots.txt', _config!.robotsEnabled,
+            (v) => _config!.robotsEnabled = v),
+        ..._config!.robotsRules.asMap().entries.map((entry) => Card(
+                child: ListTile(
+              leading: const Icon(Icons.smart_toy_outlined),
+              title: Text('User-Agent: ${entry.value.userAgent}'),
+              subtitle: Text(
+                  '允许：${entry.value.allow.join(', ')}\n禁止：${entry.value.disallow.join(', ')}'),
+              trailing: Wrap(children: [
+                IconButton(
+                    tooltip: '编辑',
+                    onPressed: () => _editRobotsRule(index: entry.key),
+                    icon: const Icon(Icons.edit_outlined)),
+                IconButton(
+                    tooltip: '删除',
+                    onPressed: () => setState(
+                        () => _config!.robotsRules.removeAt(entry.key)),
+                    icon: const Icon(Icons.delete_outline))
+              ]),
+            ))),
+      ]);
 
   Widget _advanced() => Padding(
       padding: const EdgeInsets.all(16),
@@ -510,6 +624,143 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
     link.dispose();
   }
 
+  void _moveFriendLink(int index, int delta) => setState(() {
+        final item = _config!.friendLinks.removeAt(index);
+        _config!.friendLinks.insert(index + delta, item);
+      });
+
+  Future<void> _editFriendLink({int? index}) async {
+    final item = index == null
+        ? FriendLinkConfig(name: '', url: '')
+        : _config!.friendLinks[index];
+    final name = TextEditingController(text: item.name);
+    final url = TextEditingController(text: item.url);
+    final description = TextEditingController(text: item.description);
+    final avatar = TextEditingController(text: item.avatar);
+    final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(index == null ? '添加友情链接' : '编辑友情链接'),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  TextField(
+                      controller: name,
+                      decoration: const InputDecoration(labelText: '名称')),
+                  const SizedBox(height: 12),
+                  TextField(
+                      controller: url,
+                      decoration: const InputDecoration(labelText: '网址')),
+                  const SizedBox(height: 12),
+                  TextField(
+                      controller: description,
+                      maxLines: 2,
+                      decoration: const InputDecoration(labelText: '描述（可选）')),
+                  const SizedBox(height: 12),
+                  TextField(
+                      controller: avatar,
+                      decoration: InputDecoration(
+                          labelText: '头像（可选）',
+                          suffixIcon: IconButton(
+                              tooltip: '从站点图片选择',
+                              onPressed: () =>
+                                  _chooseImage((value) => avatar.text = value),
+                              icon: const Icon(Icons.photo_library_outlined))))
+                ]),
+              ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('取消')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('确定'))
+            ],
+          ),
+        ) ??
+        false;
+    if (ok && name.text.trim().isNotEmpty && url.text.trim().isNotEmpty) {
+      setState(() {
+        if (index == null) {
+          _config!.friendLinks.add(FriendLinkConfig(
+              name: name.text.trim(),
+              url: url.text.trim(),
+              description: description.text.trim(),
+              avatar: avatar.text.trim()));
+        } else {
+          item
+            ..name = name.text.trim()
+            ..url = url.text.trim()
+            ..description = description.text.trim()
+            ..avatar = avatar.text.trim();
+        }
+      });
+    }
+    for (final controller in [name, url, description, avatar]) {
+      controller.dispose();
+    }
+  }
+
+  Future<void> _editRobotsRule({int? index}) async {
+    final rule =
+        index == null ? RobotsRuleConfig() : _config!.robotsRules[index];
+    final agent = TextEditingController(text: rule.userAgent);
+    final allow = TextEditingController(text: rule.allow.join('\n'));
+    final disallow = TextEditingController(text: rule.disallow.join('\n'));
+    final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(index == null ? '添加 Robots 规则' : '编辑 Robots 规则'),
+            content: SizedBox(
+              width: 520,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                TextField(
+                    controller: agent,
+                    decoration: const InputDecoration(labelText: 'User-Agent')),
+                const SizedBox(height: 12),
+                TextField(
+                    controller: allow,
+                    maxLines: 4,
+                    decoration: const InputDecoration(labelText: '允许路径（每行一个）')),
+                const SizedBox(height: 12),
+                TextField(
+                    controller: disallow,
+                    maxLines: 4,
+                    decoration: const InputDecoration(labelText: '禁止路径（每行一个）')),
+              ]),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('取消')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('确定'))
+            ],
+          ),
+        ) ??
+        false;
+    if (ok) {
+      final updated = RobotsRuleConfig(
+        userAgent: agent.text.trim().isEmpty ? '*' : agent.text.trim(),
+        allow: _lines(allow.text),
+        disallow: _lines(disallow.text),
+      );
+      setState(() {
+        if (index == null) {
+          _config!.robotsRules.add(updated);
+        } else {
+          _config!.robotsRules[index] = updated;
+        }
+      });
+    }
+    for (final controller in [agent, allow, disallow]) {
+      controller.dispose();
+    }
+  }
+
   Future<void> _importFont() async {
     final pick = await FilePicker.pickFiles(
         type: FileType.custom,
@@ -577,9 +828,14 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
       double.tryParse(c[key]!.text.trim()) ?? fallback;
   int _i(String key, int fallback) =>
       int.tryParse(c[key]!.text.trim()) ?? fallback;
+  List<String> _lines(String value) => value
+      .split(RegExp(r'[\r\n]+'))
+      .map((item) => item.trim())
+      .where((item) => item.isNotEmpty)
+      .toList();
   Future<void> _save() async {
     final v = _config!;
-    if (_tabs.index == 5) {
+    if (_tabs.index == 7) {
       try {
         await widget.controller.configService
             .saveRaw(widget.controller.settings.repositoryPath, c['raw']!.text);
@@ -610,8 +866,20 @@ class _SiteConfigScreenState extends State<SiteConfigScreen>
     v.bellShakeMs = _i('shakeMs', 620);
     v.articleTransitionMs = _i('articleMs', 720);
     v.gravatarBaseUrl = c['gravatar']!.text;
+    v.keywordFilterKeywords = _lines(c['filterKeywords']!.text);
+    v.keywordFilterReplacement = c['filterReplacement']!.text;
     v.supabaseUrl = c['supabaseUrl']!.text;
     v.supabaseAnonKey = c['anonKey']!.text;
+    v.seoDescription = c['seoDescription']!.text;
+    v.seoCanonicalUrl = c['canonicalUrl']!.text;
+    v.seoKeywords = c['seoKeywords']!
+        .text
+        .split(RegExp('[,，]'))
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    v.seoTitleTemplate = c['titleTemplate']!.text;
+    v.sitemapExtraPaths = _lines(c['extraPaths']!.text);
     try {
       await widget.controller.configService
           .saveCommon(widget.controller.settings.repositoryPath, v);

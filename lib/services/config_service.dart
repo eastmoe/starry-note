@@ -25,6 +25,31 @@ class FontFaceConfig {
   String display;
 }
 
+class FriendLinkConfig {
+  FriendLinkConfig({
+    required this.name,
+    required this.url,
+    this.description = '',
+    this.avatar = '',
+  });
+  String name;
+  String url;
+  String description;
+  String avatar;
+}
+
+class RobotsRuleConfig {
+  RobotsRuleConfig({
+    this.userAgent = '*',
+    List<String>? allow,
+    List<String>? disallow,
+  })  : allow = allow ?? ['/'],
+        disallow = disallow ?? [];
+  String userAgent;
+  List<String> allow;
+  List<String> disallow;
+}
+
 class SiteConfig {
   SiteConfig({required this.raw});
   String raw;
@@ -56,10 +81,23 @@ class SiteConfig {
   int bellShakeMs = 620;
   int articleTransitionMs = 720;
   String gravatarBaseUrl = '';
+  bool keywordFilterEnabled = false;
+  List<String> keywordFilterKeywords = [];
+  String keywordFilterReplacement = '***';
   String supabaseUrl = '';
   String supabaseAnonKey = '';
+  String seoDescription = '';
+  String seoCanonicalUrl = '';
+  List<String> seoKeywords = [];
+  String seoTitleTemplate = '';
+  String seoSocialImage = '';
+  bool sitemapEnabled = true;
+  List<String> sitemapExtraPaths = [];
+  bool robotsEnabled = true;
   List<MenuItemConfig> menu = [];
   List<FontFaceConfig> fontFaces = [];
+  List<FriendLinkConfig> friendLinks = [];
+  List<RobotsRuleConfig> robotsRules = [];
   Map<String, String> fonts = {};
 }
 
@@ -107,10 +145,29 @@ class ConfigService {
       ..articleTransitionMs =
           _integer(raw, ['animations', 'articleTransitionMs'], 720)
       ..gravatarBaseUrl = _string(raw, ['comments', 'gravatarBaseUrl'])
+      ..keywordFilterEnabled =
+          _bool(raw, ['comments', 'keywordFilter', 'enabled'])
+      ..keywordFilterKeywords = _parseStringArray(
+          _value(raw, ['comments', 'keywordFilter', 'keywords']) ?? '')
+      ..keywordFilterReplacement =
+          _string(raw, ['comments', 'keywordFilter', 'replacement'])
       ..supabaseUrl = _string(raw, ['supabase', 'url'])
-      ..supabaseAnonKey = _string(raw, ['supabase', 'anonKey']);
+      ..supabaseAnonKey = _string(raw, ['supabase', 'anonKey'])
+      ..seoDescription = _string(raw, ['seo', 'description'])
+      ..seoCanonicalUrl = _string(raw, ['seo', 'canonicalUrl'])
+      ..seoKeywords = _parseStringArray(_value(raw, ['seo', 'keywords']) ?? '')
+      ..seoTitleTemplate = _string(raw, ['seo', 'titleTemplate'])
+      ..seoSocialImage = _string(raw, ['seo', 'socialImage'])
+      ..sitemapEnabled = _bool(raw, ['seo', 'sitemap', 'enabled'], true)
+      ..sitemapExtraPaths =
+          _parseStringArray(_value(raw, ['seo', 'sitemap', 'extraPaths']) ?? '')
+      ..robotsEnabled = _bool(raw, ['seo', 'robots', 'enabled'], true);
     c.menu = _parseMenu(_value(raw, ['menu']) ?? '');
     c.fontFaces = _parseFontFaces(_value(raw, ['fontFaces']) ?? '');
+    c.friendLinks = _parseFriendLinks(_value(raw, ['friendLinks']) ?? '');
+    c.robotsRules = _parseRobotsRules(
+      _value(raw, ['seo', 'robots', 'rules']) ?? '',
+    );
     c.fonts = {
       for (final key in [
         'siteName',
@@ -155,9 +212,24 @@ class ConfigService {
       ['animations', 'bellShakeMs']: '${c.bellShakeMs}',
       ['animations', 'articleTransitionMs']: '${c.articleTransitionMs}',
       ['comments', 'gravatarBaseUrl']: _quote(c.gravatarBaseUrl),
+      ['comments', 'keywordFilter', 'enabled']: '${c.keywordFilterEnabled}',
+      ['comments', 'keywordFilter', 'keywords']:
+          _stringArraySource(c.keywordFilterKeywords),
+      ['comments', 'keywordFilter', 'replacement']:
+          _quote(c.keywordFilterReplacement),
       ['supabase', 'url']: _quote(c.supabaseUrl),
       ['supabase', 'anonKey']: _quote(c.supabaseAnonKey),
+      ['seo', 'description']: _quote(c.seoDescription),
+      ['seo', 'canonicalUrl']: _quote(c.seoCanonicalUrl),
+      ['seo', 'keywords']: _stringArraySource(c.seoKeywords),
+      ['seo', 'titleTemplate']: _quote(c.seoTitleTemplate),
+      ['seo', 'socialImage']: _quote(c.seoSocialImage),
+      ['seo', 'sitemap', 'enabled']: '${c.sitemapEnabled}',
+      ['seo', 'sitemap', 'extraPaths']: _stringArraySource(c.sitemapExtraPaths),
+      ['seo', 'robots', 'enabled']: '${c.robotsEnabled}',
+      ['seo', 'robots', 'rules']: _robotsRulesSource(c.robotsRules),
       ['menu']: _menuSource(c.menu),
+      ['friendLinks']: _friendLinksSource(c.friendLinks),
       ['fontFaces']: _fontFacesSource(c.fontFaces),
       for (final entry in c.fonts.entries)
         ['fonts', entry.key]: _quote(entry.value),
@@ -308,10 +380,51 @@ class ConfigService {
           })
           .where((f) => f.family.isNotEmpty)
           .toList();
+  List<FriendLinkConfig> _parseFriendLinks(String source) =>
+      RegExp(r'\{([\s\S]*?)\}')
+          .allMatches(source)
+          .map((m) {
+            final block = m.group(1)!;
+            return FriendLinkConfig(
+              name: _blockString(block, 'name'),
+              url: _blockString(block, 'url'),
+              description: _blockString(block, 'description'),
+              avatar: _blockString(block, 'avatar'),
+            );
+          })
+          .where((item) => item.name.isNotEmpty || item.url.isNotEmpty)
+          .toList();
+  List<RobotsRuleConfig> _parseRobotsRules(String source) =>
+      RegExp(r'\{([\s\S]*?)\}').allMatches(source).map((m) {
+        final block = m.group(1)!;
+        final allow =
+            RegExp(r'\ballow\s*:\s*(\[[\s\S]*?\])').firstMatch(block)?.group(1);
+        final disallow = RegExp(r'\bdisallow\s*:\s*(\[[\s\S]*?\])')
+            .firstMatch(block)
+            ?.group(1);
+        return RobotsRuleConfig(
+          userAgent: _blockString(block, 'userAgent', '*'),
+          allow: _parseStringArray(allow ?? ''),
+          disallow: _parseStringArray(disallow ?? ''),
+        );
+      }).toList();
+  String _blockString(String block, String key, [String fallback = '']) =>
+      RegExp("\\b$key\\s*:\\s*(['\"])(.*?)\\1").firstMatch(block)?.group(2) ??
+      fallback;
+  List<String> _parseStringArray(String source) => RegExp(r'''(['"])(.*?)\1''')
+      .allMatches(source)
+      .map((m) => m.group(2)!)
+      .toList();
   String _quote(String value) =>
       "'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'";
   String _menuSource(List<MenuItemConfig> items) =>
       '[\n${items.map((e) => "    { name: ${_quote(e.name)}, link: ${_quote(e.link)} }").join(',\n')}\n  ]';
+  String _friendLinksSource(List<FriendLinkConfig> items) =>
+      '[\n${items.map((e) => "    { name: ${_quote(e.name)}, url: ${_quote(e.url)}, description: ${_quote(e.description)}, avatar: ${_quote(e.avatar)} }").join(',\n')}\n  ]';
+  String _stringArraySource(List<String> items) =>
+      '[${items.map(_quote).join(', ')}]';
+  String _robotsRulesSource(List<RobotsRuleConfig> rules) =>
+      '[\n${rules.map((e) => "        { userAgent: ${_quote(e.userAgent)}, allow: ${_stringArraySource(e.allow)}, disallow: ${_stringArraySource(e.disallow)} }").join(',\n')}\n      ]';
   String _fontFacesSource(List<FontFaceConfig> items) =>
       '[\n${items.map((e) => "    { family: ${_quote(e.family)}, src: ${_quote(e.src)}, format: ${_quote(e.format)}, weight: ${_quote(e.weight)}, style: ${_quote(e.style)}, display: ${_quote(e.display)} }").join(',\n')}\n  ]';
 }

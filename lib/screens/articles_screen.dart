@@ -50,10 +50,19 @@ class ArticlesScreen extends StatelessWidget {
                               horizontal: 18,
                               vertical: 8,
                             ),
-                            title: Text(
-                              article.title,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w700),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(article.title,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700)),
+                                ),
+                                if (article.page)
+                                  const Chip(
+                                      avatar: Icon(Icons.description_outlined,
+                                          size: 16),
+                                      label: Text('页面')),
+                              ],
                             ),
                             subtitle: Text(
                               '${article.formattedDate} · ${article.category} · /${article.slug}',

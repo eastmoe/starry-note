@@ -9,6 +9,10 @@ class Article {
     required this.excerpt,
     required this.tags,
     required this.body,
+    this.page = false,
+    this.description = '',
+    this.canonical = '',
+    this.noindex = false,
     this.filePath,
   });
 
@@ -21,6 +25,10 @@ class Article {
   String excerpt;
   List<String> tags;
   String body;
+  bool page;
+  String description;
+  String canonical;
+  bool noindex;
   String? filePath;
 
   String get formattedDate =>
@@ -33,7 +41,11 @@ category: ${_yaml(category)}
 author: ${_yaml(author)}
 cover: ${_yaml(cover)}
 excerpt: ${_yaml(excerpt)}
+description: ${_yaml(description)}
+canonical: ${_yaml(canonical)}
+noindex: $noindex
 tags: [${tags.map(_yaml).join(', ')}]
+page: $page
 ---
 
 ${body.trimLeft()}
