@@ -72,6 +72,9 @@ class ArticleService {
       noindex: (values['noindex'] ?? '').toLowerCase() == 'true',
       isPrivate: (values['private'] ?? '').toLowerCase() == 'true',
       password: values['password'] ?? '',
+      source: values['source'] ?? '',
+      sourceId: values['sourceId'] ?? '',
+      sourceUrl: values['sourceUrl'] ?? '',
     );
   }
 

@@ -31,6 +31,43 @@ class SupabaseService {
     _check(response);
   }
 
+  Future<int> importComments(
+    AppSettings settings,
+    List<Map<String, dynamic>> comments,
+  ) async {
+    if (comments.isEmpty) return 0;
+    final slugs = comments.map((item) => '${item['slug']}').toSet().toList();
+    final existingResponse = await _client.get(
+      _uri(settings, '/rest/v1/comments', {
+        'select': 'slug,nickname,email,content,created_at',
+        'slug': 'in.(${slugs.map(_postgrestValue).join(',')})',
+      }),
+      headers: _headers(settings),
+    );
+    _check(existingResponse);
+    final existing = (jsonDecode(existingResponse.body) as List)
+        .map((item) => _commentSignature(item as Map<String, dynamic>))
+        .toSet();
+    final pending = comments
+        .where((item) => !existing.contains(_commentSignature(item)))
+        .toList();
+    var imported = 0;
+    for (var offset = 0; offset < pending.length; offset += 100) {
+      final end = (offset + 100).clamp(0, pending.length);
+      final response = await _client.post(
+        _uri(settings, '/rest/v1/comments', const {}),
+        headers: {
+          ..._headers(settings),
+          'prefer': 'return=minimal',
+        },
+        body: jsonEncode(pending.sublist(offset, end)),
+      );
+      _check(response);
+      imported += end - offset;
+    }
+    return imported;
+  }
+
   Uri _uri(AppSettings settings, String path, Map<String, String> query) {
     if (settings.supabaseUrl.isEmpty || settings.supabaseKey.isEmpty) {
       throw Exception('请先填写 Supabase URL 与管理 API Key。');
@@ -47,6 +84,20 @@ class SupabaseService {
         'authorization': 'Bearer ${settings.supabaseKey}',
         'content-type': 'application/json',
       };
+
+  String _postgrestValue(String value) =>
+      '"${value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"';
+
+  String _commentSignature(Map<String, dynamic> value) => [
+        value['slug'] ?? '',
+        value['nickname'] ?? '',
+        value['email'] ?? '',
+        value['content'] ?? '',
+        DateTime.tryParse('${value['created_at']}')
+                ?.toUtc()
+                .toIso8601String() ??
+            '${value['created_at'] ?? ''}',
+      ].join('\u001f');
 
   void _check(http.Response response) {
     if (response.statusCode < 200 || response.statusCode >= 300) {

@@ -8,6 +8,7 @@ import 'backup_screen.dart';
 import 'comments_screen.dart';
 import 'connection_screen.dart';
 import 'site_config_screen.dart';
+import 'wordpress_import_screen.dart';
 
 class StudioScreen extends StatefulWidget {
   const StudioScreen({super.key, required this.controller});
@@ -38,6 +39,10 @@ class _StudioScreenState extends State<StudioScreen> {
       label: Text('备份'),
     ),
     NavigationRailDestination(
+      icon: Icon(Icons.move_to_inbox_outlined),
+      label: Text('WP 导入'),
+    ),
+    NavigationRailDestination(
       icon: Icon(Icons.palette_outlined),
       label: Text('外观'),
     ),
@@ -52,6 +57,7 @@ class _StudioScreenState extends State<StudioScreen> {
       AssetsScreen(controller: widget.controller),
       ConnectionScreen(controller: widget.controller),
       BackupScreen(controller: widget.controller),
+      WordPressImportScreen(controller: widget.controller),
       AppearanceScreen(controller: widget.controller),
     ];
     final compact = MediaQuery.sizeOf(context).width < 760;

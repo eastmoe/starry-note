@@ -15,6 +15,9 @@ class Article {
     this.noindex = false,
     this.isPrivate = false,
     this.password = '',
+    this.source = '',
+    this.sourceId = '',
+    this.sourceUrl = '',
     this.filePath,
   });
 
@@ -33,6 +36,9 @@ class Article {
   bool noindex;
   bool isPrivate;
   String password;
+  String source;
+  String sourceId;
+  String sourceUrl;
   String? filePath;
 
   String get formattedDate =>
@@ -50,6 +56,9 @@ canonical: ${_yaml(canonical)}
 noindex: $noindex
 private: $isPrivate
 password: ${_yaml(password)}
+source: ${_yaml(source)}
+sourceId: ${_yaml(sourceId)}
+sourceUrl: ${_yaml(sourceUrl)}
 tags: [${tags.map(_yaml).join(', ')}]
 page: $page
 ---

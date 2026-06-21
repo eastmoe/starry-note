@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -88,11 +89,56 @@ class R2Service {
     return '${settings.r2PublicBaseUrl.replaceAll(RegExp(r'/+$'), '')}/$key';
   }
 
+  Future<bool> objectExists(AppSettings settings, String key) async {
+    _validate(settings);
+    final endpoint = _objectEndpoint(settings, key);
+    final response = await _signedRequest(
+      settings,
+      endpoint,
+      Uint8List(0),
+      method: 'HEAD',
+    );
+    if (response.statusCode == 404) return false;
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+          _uploadError(response).replaceFirst('R2 上传失败', 'R2 检查失败'));
+    }
+    return true;
+  }
+
+  Future<String> uploadFile(
+    AppSettings settings,
+    File file, {
+    required String key,
+    String? payloadHash,
+    String? contentType,
+  }) async {
+    _validate(settings);
+    final endpoint = _objectEndpoint(settings, key);
+    final hash =
+        payloadHash ?? (await sha256.bind(file.openRead()).first).toString();
+    final type =
+        contentType ?? lookupMimeType(file.path) ?? 'application/octet-stream';
+    final headers = _uploadHeaders(settings, endpoint, hash, type);
+    final request = http.StreamedRequest('PUT', endpoint)
+      ..contentLength = await file.length()
+      ..headers.addAll(headers);
+    final responseFuture = _client.send(request);
+    await request.sink.addStream(file.openRead());
+    await request.sink.close();
+    final response = await http.Response.fromStream(await responseFuture);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_uploadError(response));
+    }
+    return '${settings.r2PublicBaseUrl.replaceAll(RegExp(r'/+$'), '')}/$key';
+  }
+
   Future<http.Response> _signedRequest(
     AppSettings settings,
     Uri endpoint,
-    Uint8List bytes,
-  ) async {
+    Uint8List bytes, {
+    String method = 'GET',
+  }) async {
     final now = DateTime.now().toUtc();
     final amzDate = _amzDate(now);
     final dateStamp = amzDate.substring(0, 8);
@@ -105,7 +151,7 @@ class R2Service {
         'host:${endpoint.host}\nx-amz-content-sha256:$payloadHash\nx-amz-date:$amzDate\n';
     const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
     final canonicalRequest = [
-      'GET',
+      method,
       endpoint.path,
       canonicalQuery,
       canonicalHeaders,
@@ -123,12 +169,59 @@ class R2Service {
       sha256,
       _signingKey(settings.r2SecretAccessKey, dateStamp),
     ).convert(utf8.encode(stringToSign));
-    return _client.get(endpoint, headers: {
+    final request = http.Request(method, endpoint)
+      ..headers.addAll({
+        'x-amz-content-sha256': payloadHash,
+        'x-amz-date': amzDate,
+        'authorization':
+            'AWS4-HMAC-SHA256 Credential=${settings.r2AccessKeyId}/$scope, SignedHeaders=$signedHeaders, Signature=$signature',
+      });
+    return http.Response.fromStream(await _client.send(request));
+  }
+
+  Uri _objectEndpoint(AppSettings settings, String key) => Uri.https(
+        '${settings.r2AccountId}.r2.cloudflarestorage.com',
+        '/${settings.r2Bucket}/$key',
+      );
+
+  Map<String, String> _uploadHeaders(
+    AppSettings settings,
+    Uri endpoint,
+    String payloadHash,
+    String contentType,
+  ) {
+    final now = DateTime.now().toUtc();
+    final amzDate = _amzDate(now);
+    final dateStamp = amzDate.substring(0, 8);
+    final canonicalHeaders =
+        'content-type:$contentType\nhost:${endpoint.host}\nx-amz-content-sha256:$payloadHash\nx-amz-date:$amzDate\n';
+    const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
+    final canonicalRequest = [
+      'PUT',
+      '/${endpoint.pathSegments.map(Uri.encodeComponent).join('/')}',
+      '',
+      canonicalHeaders,
+      signedHeaders,
+      payloadHash,
+    ].join('\n');
+    final scope = '$dateStamp/auto/s3/aws4_request';
+    final stringToSign = [
+      'AWS4-HMAC-SHA256',
+      amzDate,
+      scope,
+      sha256.convert(utf8.encode(canonicalRequest)),
+    ].join('\n');
+    final signature = Hmac(
+      sha256,
+      _signingKey(settings.r2SecretAccessKey, dateStamp),
+    ).convert(utf8.encode(stringToSign));
+    return {
+      'content-type': contentType,
       'x-amz-content-sha256': payloadHash,
       'x-amz-date': amzDate,
       'authorization':
           'AWS4-HMAC-SHA256 Credential=${settings.r2AccessKeyId}/$scope, SignedHeaders=$signedHeaders, Signature=$signature',
-    });
+    };
   }
 
   List<int> _signingKey(String secret, String date) {

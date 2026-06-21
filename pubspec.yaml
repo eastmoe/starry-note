@@ -14,12 +14,15 @@ dependencies:
   flutter_markdown: ^0.7.7+1
   flutter_secure_storage: ^10.0.0
   http: ^1.6.0
+  html: ^0.15.6
   mime: ^2.0.0
   pasteboard: ^0.5.0
   path: ^1.9.1
   path_provider: ^2.1.6
+  pinyin: ^3.3.0
   url_launcher: ^6.3.2
   uuid: ^4.5.3
+  xml: ^7.0.1
   flutter_secure_storage_windows: 4.2.2
 
 dev_dependencies:

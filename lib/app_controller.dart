@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'models/app_settings.dart';
 import 'models/article.dart';
 import 'models/comment.dart';
+import 'models/wordpress_import.dart';
 import 'services/article_service.dart';
 import 'services/asset_service.dart';
 import 'services/backup_service.dart';
@@ -15,6 +16,7 @@ import 'services/git_service.dart';
 import 'services/r2_service.dart';
 import 'services/settings_service.dart';
 import 'services/supabase_service.dart';
+import 'services/wordpress_import_service.dart';
 
 class AppController extends ChangeNotifier {
   AppController({
@@ -26,6 +28,7 @@ class AppController extends ChangeNotifier {
     ConfigService? configService,
     AssetService? assetService,
     BackupService? backupService,
+    WordPressImportService? wordpressImportService,
   })  : settingsService = settingsService ?? const SettingsService(),
         gitService = gitService ?? GitService(),
         articleService = articleService ?? ArticleService(),
@@ -33,7 +36,9 @@ class AppController extends ChangeNotifier {
         supabaseService = supabaseService ?? SupabaseService(),
         configService = configService ?? ConfigService(),
         assetService = assetService ?? AssetService(),
-        backupService = backupService ?? BackupService();
+        backupService = backupService ?? BackupService(),
+        wordpressImportService =
+            wordpressImportService ?? WordPressImportService();
 
   final SettingsService settingsService;
   final GitService gitService;
@@ -43,6 +48,7 @@ class AppController extends ChangeNotifier {
   final ConfigService configService;
   final AssetService assetService;
   final BackupService backupService;
+  final WordPressImportService wordpressImportService;
 
   AppSettings settings = const AppSettings();
   List<Article> articles = [];
@@ -187,6 +193,39 @@ class AppController extends ChangeNotifier {
       supabaseService.listComments(settings);
   Future<void> deleteComment(String id) =>
       run(() => supabaseService.deleteComment(settings, id));
+
+  Future<WordPressImportPreview> inspectWordPress(String path) =>
+      wordpressImportService.inspect(File(path));
+
+  Future<WordPressImportResult> importWordPress(
+    WordPressImportOptions options, {
+    WordPressImportProgressCallback? onProgress,
+  }) async {
+    late WordPressImportResult result;
+    await run(() async {
+      if (!hasRepository) throw Exception('请先连接 Starry Blog 仓库。');
+      if (await gitService.isAvailable) {
+        final changes = await gitService.status(settings.repositoryPath);
+        if (changes.isNotEmpty) {
+          throw Exception('导入前请先提交或处理当前工作区改动，以免与批量导入混在同一个提交中。');
+        }
+      }
+      result = await wordpressImportService.execute(
+        repositoryPath: settings.repositoryPath,
+        settings: settings,
+        options: options,
+        onProgress: onProgress,
+      );
+      if (await gitService.isAvailable) {
+        await gitService.saveCommit(
+          settings.repositoryPath,
+          message: 'import: WordPress ${result.articles} posts',
+        );
+      }
+      await refreshArticles();
+    });
+    return result;
+  }
 
   Future<List<SupabaseTableInfo>> backupTables() =>
       backupService.listTables(settings);

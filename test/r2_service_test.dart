@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -82,5 +83,30 @@ void main() {
     expect(captured.url.queryParameters['max-keys'], '1');
     expect(captured.headers['authorization'], startsWith('AWS4-HMAC-SHA256 '));
     expect(message, contains('R2 连接正常'));
+  });
+
+  test('uploads a file to a deterministic key and checks for existing objects',
+      () async {
+    final methods = <String>[];
+    final service = R2Service(
+      client: MockClient((request) async {
+        methods.add(request.method);
+        if (request.method == 'HEAD') return http.Response('', 404);
+        return http.Response('', 200);
+      }),
+    );
+    final root = await Directory.systemTemp.createTemp('r2-file-test-');
+    addTearDown(() => root.delete(recursive: true));
+    final file = File('${root.path}${Platform.pathSeparator}asset.txt');
+    await file.writeAsString('asset');
+    expect(await service.objectExists(_settings, 'wordpress/aa/hash.txt'),
+        isFalse);
+    final url = await service.uploadFile(
+      _settings,
+      file,
+      key: 'wordpress/aa/hash.txt',
+    );
+    expect(methods, ['HEAD', 'PUT']);
+    expect(url, 'https://assets.example.com/wordpress/aa/hash.txt');
   });
 }
