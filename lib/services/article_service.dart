@@ -70,6 +70,8 @@ class ArticleService {
       description: values['description'] ?? '',
       canonical: values['canonical'] ?? '',
       noindex: (values['noindex'] ?? '').toLowerCase() == 'true',
+      isPrivate: (values['private'] ?? '').toLowerCase() == 'true',
+      password: values['password'] ?? '',
     );
   }
 
@@ -112,6 +114,7 @@ class ArticleService {
             'page': article.page,
             'canonical': article.canonical,
             'noindex': article.noindex,
+            if (article.isPrivate) 'private': true,
           },
         )
         .toList();

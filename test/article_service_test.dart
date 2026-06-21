@@ -16,6 +16,8 @@ excerpt: 测试摘要
 description: 搜索摘要
 canonical: https://example.com/article
 noindex: true
+private: true
+password: 'open sesame'
 tags: [Flutter, 随笔]
 page: true
 ---
@@ -29,6 +31,8 @@ page: true
     expect(article.description, '搜索摘要');
     expect(article.canonical, 'https://example.com/article');
     expect(article.noindex, isTrue);
+    expect(article.isPrivate, isTrue);
+    expect(article.password, 'open sesame');
     expect(article.body, contains('# 正文'));
   });
 
@@ -53,6 +57,8 @@ page: true
         tags: ['Flutter'],
         body: '# Hello',
         page: true,
+        isPrivate: true,
+        password: 'secret',
       ),
     );
     final index = await File(
@@ -61,9 +67,13 @@ page: true
     expect(index, contains('"slug": "hello"'));
     expect(index, contains('"date": "2026-06-19"'));
     expect(index, contains('"page": true'));
+    expect(index, contains('"private": true'));
+    expect(index, isNot(contains('secret')));
     final markdown = await File(
       '${articles.path}${Platform.pathSeparator}hello.md',
     ).readAsString();
     expect(markdown, contains('page: true'));
+    expect(markdown, contains('private: true'));
+    expect(markdown, contains('password: secret'));
   });
 }

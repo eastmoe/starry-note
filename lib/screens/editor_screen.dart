@@ -18,9 +18,7 @@ class EditorScreen extends StatefulWidget {
   State<EditorScreen> createState() => _EditorScreenState();
 }
 
-class _EditorScreenState extends State<EditorScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabs;
+class _EditorScreenState extends State<EditorScreen> {
   late final TextEditingController _title;
   late final TextEditingController _slug;
   late final TextEditingController _category;
@@ -29,18 +27,21 @@ class _EditorScreenState extends State<EditorScreen>
   late final TextEditingController _excerpt;
   late final TextEditingController _description;
   late final TextEditingController _canonical;
+  late final TextEditingController _password;
   late final TextEditingController _tags;
   late final TextEditingController _body;
+  final _blockEditorKey = GlobalKey<_BlockMarkdownEditorState>();
   late DateTime _date;
   late bool _page;
   late bool _noindex;
+  late bool _private;
+  var _showPassword = false;
   var _uploading = false;
 
   @override
   void initState() {
     super.initState();
     final article = widget.article;
-    _tabs = TabController(length: 2, vsync: this);
     _title = TextEditingController(text: article.title);
     _slug = TextEditingController(text: article.slug);
     _category = TextEditingController(text: article.category);
@@ -49,21 +50,17 @@ class _EditorScreenState extends State<EditorScreen>
     _excerpt = TextEditingController(text: article.excerpt);
     _description = TextEditingController(text: article.description);
     _canonical = TextEditingController(text: article.canonical);
+    _password = TextEditingController(text: article.password);
     _tags = TextEditingController(text: article.tags.join(', '));
-    _body = TextEditingController(text: article.body)
-      ..addListener(_refreshPreview);
+    _body = TextEditingController(text: article.body);
     _date = article.date;
     _page = article.page;
     _noindex = article.noindex;
-  }
-
-  void _refreshPreview() {
-    if (mounted) setState(() {});
+    _private = article.isPrivate;
   }
 
   @override
   void dispose() {
-    _tabs.dispose();
     for (final c in [
       _title,
       _slug,
@@ -73,6 +70,7 @@ class _EditorScreenState extends State<EditorScreen>
       _excerpt,
       _description,
       _canonical,
+      _password,
       _tags,
       _body,
     ]) {
@@ -85,13 +83,6 @@ class _EditorScreenState extends State<EditorScreen>
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: Text(_title.text.isEmpty ? '新文章' : _title.text),
-          bottom: TabBar(
-            controller: _tabs,
-            tabs: const [
-              Tab(text: '编辑'),
-              Tab(text: '预览'),
-            ],
-          ),
           actions: [
             if (widget.article.filePath != null)
               IconButton(
@@ -109,7 +100,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
           ],
         ),
-        body: TabBarView(controller: _tabs, children: [_editor(), _preview()]),
+        body: _editor(),
       );
 
   Widget _editor() => SingleChildScrollView(
@@ -187,6 +178,37 @@ class _EditorScreenState extends State<EditorScreen>
                   value: _page,
                   onChanged: (value) => setState(() => _page = value),
                 ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('设为私密文章'),
+                  subtitle: const Text('访客输入密码后才能阅读正文。'),
+                  value: _private,
+                  onChanged: (value) => setState(() => _private = value),
+                ),
+                if (_private)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TextField(
+                      controller: _password,
+                      obscureText: !_showPassword,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      decoration: InputDecoration(
+                        labelText: '访问密码',
+                        helperText: '密码会写入 Markdown 源文件，但不会进入文章索引。',
+                        suffixIcon: IconButton(
+                          tooltip: _showPassword ? '隐藏密码' : '显示密码',
+                          onPressed: () =>
+                              setState(() => _showPassword = !_showPassword),
+                          icon: Icon(
+                            _showPassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   title: const Text('文章 SEO（可选）'),
@@ -226,17 +248,9 @@ class _EditorScreenState extends State<EditorScreen>
                     const SingleActivator(LogicalKeyboardKey.keyV,
                         control: true): _paste,
                   },
-                  child: TextField(
+                  child: _BlockMarkdownEditor(
+                    key: _blockEditorKey,
                     controller: _body,
-                    minLines: 22,
-                    maxLines: null,
-                    keyboardType: TextInputType.multiline,
-                    style:
-                        const TextStyle(fontFamily: 'monospace', height: 1.55),
-                    decoration: const InputDecoration(
-                      hintText: '# 从这里开始写作…',
-                      alignLabelWithHint: true,
-                    ),
                   ),
                 ),
               ],
@@ -288,36 +302,8 @@ class _EditorScreenState extends State<EditorScreen>
     );
   }
 
-  ({int start, int end, String selected}) get _selection {
-    final selection = _body.selection;
-    if (!selection.isValid) {
-      final end = _body.text.length;
-      return (start: end, end: end, selected: '');
-    }
-    final start =
-        selection.start < selection.end ? selection.start : selection.end;
-    final end =
-        selection.start < selection.end ? selection.end : selection.start;
-    return (
-      start: start,
-      end: end,
-      selected: _body.text.substring(start, end),
-    );
-  }
-
   void _wrap(String before, String after, String placeholder) {
-    final selection = _selection;
-    final content =
-        selection.selected.isEmpty ? placeholder : selection.selected;
-    final replacement = '$before$content$after';
-    _body.value = TextEditingValue(
-      text:
-          _body.text.replaceRange(selection.start, selection.end, replacement),
-      selection: TextSelection(
-        baseOffset: selection.start + before.length,
-        extentOffset: selection.start + before.length + content.length,
-      ),
-    );
+    _blockEditorKey.currentState?.wrap(before, after, placeholder);
   }
 
   void _prefix(String prefix) => _prefixLines(
@@ -334,41 +320,12 @@ class _EditorScreenState extends State<EditorScreen>
     String Function(int index) prefix, {
     required String placeholder,
   }) {
-    final selection = _selection;
-    final content =
-        selection.selected.isEmpty ? placeholder : selection.selected;
-    final lines = content.split('\n');
-    final replacement = [
-      for (var i = 0; i < lines.length; i++) '${prefix(i)}${lines[i]}',
-    ].join('\n');
-    _body.value = TextEditingValue(
-      text:
-          _body.text.replaceRange(selection.start, selection.end, replacement),
-      selection: TextSelection(
-        baseOffset: selection.start,
-        extentOffset: selection.start + replacement.length,
-      ),
-    );
+    _blockEditorKey.currentState?.prefixLines(prefix, placeholder);
   }
 
   void _table() {
-    final selection = _selection;
-    final content = selection.selected.isEmpty ? '内容' : selection.selected;
-    final table = '| 标题 1 | 标题 2 |\n| --- | --- |\n| $content | 内容 |';
-    _body.value = TextEditingValue(
-      text: _body.text.replaceRange(selection.start, selection.end, table),
-      selection: TextSelection(
-        baseOffset: selection.start + table.indexOf(content),
-        extentOffset: selection.start + table.indexOf(content) + content.length,
-      ),
-    );
+    _blockEditorKey.currentState?.insertTable();
   }
-
-  Widget _preview() => Markdown(
-        data: _body.text,
-        selectable: true,
-        padding: const EdgeInsets.all(28),
-      );
 
   Widget _field(
     TextEditingController controller,
@@ -425,13 +382,7 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   void _insert(String value) {
-    final selection = _body.selection;
-    final start = selection.isValid ? selection.start : _body.text.length;
-    final end = selection.isValid ? selection.end : _body.text.length;
-    _body.value = TextEditingValue(
-      text: _body.text.replaceRange(start, end, value),
-      selection: TextSelection.collapsed(offset: start + value.length),
-    );
+    _blockEditorKey.currentState?.insert(value);
   }
 
   Future<void> _pickDate() async {
@@ -445,6 +396,10 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   Future<void> _save() async {
+    if (_private && _password.text.isEmpty) {
+      _message('私密文章必须设置访问密码。');
+      return;
+    }
     final article = widget.article
       ..title = _title.text.trim()
       ..slug = _slug.text.trim()
@@ -455,6 +410,8 @@ class _EditorScreenState extends State<EditorScreen>
       ..description = _description.text.trim()
       ..canonical = _canonical.text.trim()
       ..noindex = _noindex
+      ..isPrivate = _private
+      ..password = _private ? _password.text : ''
       ..tags = _tags.text
           .split(RegExp('[,，]'))
           .map((e) => e.trim())
@@ -503,4 +460,261 @@ class _EditorScreenState extends State<EditorScreen>
   void _message(String value) => ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(value)));
+}
+
+class _BlockMarkdownEditor extends StatefulWidget {
+  const _BlockMarkdownEditor({
+    super.key,
+    required this.controller,
+  });
+
+  final TextEditingController controller;
+
+  @override
+  State<_BlockMarkdownEditor> createState() => _BlockMarkdownEditorState();
+}
+
+class _BlockMarkdownEditorState extends State<_BlockMarkdownEditor> {
+  late List<String> _blocks;
+  late List<String> _separators;
+  late final TextEditingController _activeController;
+  late final FocusNode _focusNode;
+  var _activeIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final parsed = _parse(widget.controller.text);
+    _blocks = parsed.blocks;
+    _separators = parsed.separators;
+    _activeController = TextEditingController(text: _blocks.first);
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _activeController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  ({List<String> blocks, List<String> separators}) _parse(String value) {
+    final blocks = <String>[];
+    final separators = <String>[];
+    var start = 0;
+    for (final match in RegExp(r'\n[ \t]*\n').allMatches(value)) {
+      blocks.add(value.substring(start, match.start));
+      separators.add(match.group(0)!);
+      start = match.end;
+    }
+    blocks.add(value.substring(start));
+    return (blocks: blocks, separators: separators);
+  }
+
+  String get _text {
+    final buffer = StringBuffer();
+    for (var i = 0; i < _blocks.length; i++) {
+      buffer.write(_blocks[i]);
+      if (i < _separators.length) buffer.write(_separators[i]);
+    }
+    return buffer.toString();
+  }
+
+  int get _localCursor {
+    final selection = _activeController.selection;
+    return selection.isValid
+        ? selection.extentOffset
+        : _activeController.text.length;
+  }
+
+  int _blockStart(int index) {
+    var result = 0;
+    for (var i = 0; i < index; i++) {
+      result += _blocks[i].length + _separators[i].length;
+    }
+    return result;
+  }
+
+  void _onChanged(String _) {
+    final globalCursor = _blockStart(_activeIndex) + _localCursor;
+    _blocks[_activeIndex] = _activeController.text;
+    final text = _text;
+    final parsed = _parse(text);
+    final nextBlocks = parsed.blocks;
+
+    var nextIndex = 0;
+    var nextStart = 0;
+    for (var i = 0; i < nextBlocks.length; i++) {
+      final end = nextStart + nextBlocks[i].length;
+      nextIndex = i;
+      if (globalCursor <= end || i == nextBlocks.length - 1) break;
+      nextStart = end + parsed.separators[i].length;
+    }
+
+    widget.controller.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(
+        offset: globalCursor.clamp(0, text.length),
+      ),
+    );
+
+    if (nextBlocks.length != _blocks.length || nextIndex != _activeIndex) {
+      _blocks = nextBlocks;
+      _separators = parsed.separators;
+      _activeIndex = nextIndex;
+      final localCursor = (globalCursor - nextStart).clamp(
+        0,
+        _blocks[_activeIndex].length,
+      );
+      _activeController.value = TextEditingValue(
+        text: _blocks[_activeIndex],
+        selection: TextSelection.collapsed(offset: localCursor),
+      );
+    }
+    setState(() {});
+  }
+
+  void _activate(int index) {
+    if (_activeIndex != index) {
+      setState(() {
+        _activeIndex = index;
+        _activeController.value = TextEditingValue(
+          text: _blocks[index],
+          selection: TextSelection.collapsed(offset: _blocks[index].length),
+        );
+      });
+    }
+    _focusNode.requestFocus();
+  }
+
+  ({int start, int end, String selected}) get _selection {
+    final selection = _activeController.selection;
+    if (!selection.isValid) {
+      final end = _activeController.text.length;
+      return (start: end, end: end, selected: '');
+    }
+    final start =
+        selection.start < selection.end ? selection.start : selection.end;
+    final end =
+        selection.start < selection.end ? selection.end : selection.start;
+    return (
+      start: start,
+      end: end,
+      selected: _activeController.text.substring(start, end),
+    );
+  }
+
+  void _replace(String replacement, int selectionStart, int selectionEnd) {
+    final selection = _selection;
+    _activeController.value = TextEditingValue(
+      text: _activeController.text.replaceRange(
+        selection.start,
+        selection.end,
+        replacement,
+      ),
+      selection: TextSelection(
+        baseOffset: selection.start + selectionStart,
+        extentOffset: selection.start + selectionEnd,
+      ),
+    );
+    _onChanged(_activeController.text);
+    _focusNode.requestFocus();
+  }
+
+  void wrap(String before, String after, String placeholder) {
+    final selection = _selection;
+    final content =
+        selection.selected.isEmpty ? placeholder : selection.selected;
+    _replace(
+      '$before$content$after',
+      before.length,
+      before.length + content.length,
+    );
+  }
+
+  void prefixLines(String Function(int index) prefix, String placeholder) {
+    final selection = _selection;
+    final content =
+        selection.selected.isEmpty ? placeholder : selection.selected;
+    final lines = content.split('\n');
+    final replacement = [
+      for (var i = 0; i < lines.length; i++) '${prefix(i)}${lines[i]}',
+    ].join('\n');
+    _replace(replacement, 0, replacement.length);
+  }
+
+  void insertTable() {
+    final selection = _selection;
+    final content = selection.selected.isEmpty ? '内容' : selection.selected;
+    final table = '| 标题 1 | 标题 2 |\n| --- | --- |\n| $content | 内容 |';
+    final offset = table.indexOf(content);
+    _replace(table, offset, offset + content.length);
+  }
+
+  void insert(String value) {
+    _replace(value, value.length, value.length);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: colors.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < _blocks.length; i++) ...[
+              if (i > 0) const SizedBox(height: 18),
+              if (i == _activeIndex)
+                TextField(
+                  key: const ValueKey('active-markdown-block'),
+                  controller: _activeController,
+                  focusNode: _focusNode,
+                  onChanged: _onChanged,
+                  minLines:
+                      _blocks.length == 1 && _blocks.first.isEmpty ? 10 : 1,
+                  maxLines: null,
+                  keyboardType: TextInputType.multiline,
+                  style: const TextStyle(fontFamily: 'monospace', height: 1.55),
+                  decoration: const InputDecoration(
+                    hintText: '# 从这里开始写作…',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                )
+              else
+                Semantics(
+                  button: true,
+                  label: '编辑 Markdown 区块 ${i + 1}',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => _activate(i),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 42),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        child: _blocks[i].isEmpty
+                            ? Text(
+                                '点击此处开始写作',
+                                style: TextStyle(color: colors.outline),
+                              )
+                            : MarkdownBody(data: _blocks[i]),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }

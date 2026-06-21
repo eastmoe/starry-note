@@ -13,6 +13,8 @@ class Article {
     this.description = '',
     this.canonical = '',
     this.noindex = false,
+    this.isPrivate = false,
+    this.password = '',
     this.filePath,
   });
 
@@ -29,6 +31,8 @@ class Article {
   String description;
   String canonical;
   bool noindex;
+  bool isPrivate;
+  String password;
   String? filePath;
 
   String get formattedDate =>
@@ -44,6 +48,8 @@ excerpt: ${_yaml(excerpt)}
 description: ${_yaml(description)}
 canonical: ${_yaml(canonical)}
 noindex: $noindex
+private: $isPrivate
+password: ${_yaml(password)}
 tags: [${tags.map(_yaml).join(', ')}]
 page: $page
 ---
